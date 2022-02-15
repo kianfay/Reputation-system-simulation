@@ -7,9 +7,9 @@ use crate::witness_rep::{
 };
 
 use iota_streams::{
-    app::transport::tangle::client::Client,
+    app::transport::tangle::{TangleAddress, client::Client},
     app_channels::api::tangle::{
-        Address, Author, Bytes, Subscriber,
+        Address, Author, Bytes, Subscriber
     },
     core::{println, Result},
     app::message::HasLink
@@ -135,8 +135,9 @@ pub async fn transact(
     transacting_ids: &mut Vec<ParticipantIdentity>,
     witness_ids: &mut Vec<ParticipantIdentity>,
     organization_client: &mut Author<Client>,
+    announcement_link: TangleAddress,
     lazy_method: LazyMethod
-) -> Result<String> {
+) -> Result<()> {
     const DEFAULT_TIMEOUT : u32 = 60*2; // 2 mins
 
     //--------------------------------------------------------------
@@ -151,12 +152,7 @@ pub async fn transact(
     // ORGANIZATION SENDS ANOUNCEMENT AND SUBS PROCESS IT
     // (IMITATING A KEYLOAD IN A MULTI-BRANCH/MULTI-PUB CHANNEL)
     //--------------------------------------------------------------
-    let announcement_link = organization_client.send_announce().await?;
-    let ann_link_string = announcement_link.to_string();
-    println!(
-        "Announcement Link: {}\nTangle Index: {:#}\n",
-        ann_link_string, announcement_link.to_msg_index()
-    );
+
 
     // participants process the channel announcement
     let ann_address = Address::try_from_bytes(&announcement_link.to_bytes())?;
@@ -391,5 +387,5 @@ pub async fn transact(
         witness_clients[i].unregister();
     }
     
-    return Ok(ann_link_string);
+    return Ok(());
 }

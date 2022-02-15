@@ -6,10 +6,11 @@ use crate::witness_rep::{
 };
 
 use iota_streams::{
-    app::transport::tangle::client::Client,
+    app::transport::tangle::{TangleAddress, client::Client},
     app_channels::api::tangle::{
-        Author, ChannelType, Subscriber,
+        Author, ChannelType, Subscriber
     },
+    app_channels::Tangle,
     core::Result
 };
 use identity::{
@@ -47,6 +48,18 @@ pub async fn simulation(
     // CREATE PARTICIPANTS FOR SIMULATION
     // (MORE DETAILS IN ALL_IN_ONE_TRANSACTION.RS)
     //--------------------------------------------------------------
+    let client = Client::new_from_url(node_url);
+
+    let seed: &str = &(0..81)
+        .map(|_| {
+            ALPH9
+                .chars()
+                .nth(rand::thread_rng().gen_range(0, 27))
+                .unwrap()
+        })
+        .collect::<String>();
+
+    let on_a: &mut Author<Tangle> = &mut Author::new(seed, ChannelType::MultiBranch, client.clone());
     
     // create Decentalised Ids (for now, none needed for the organization)
     let did_details = create_n_dids(num_participants).await?;
@@ -57,7 +70,6 @@ pub async fn simulation(
                                             .collect();
 
     // create channel subscriber instances
-    let client = Client::new_from_url(node_url);
     let participants: &mut Vec<ParticipantIdentity> = &mut Vec::new();
     for i in 0..num_participants{
         let name = format!("Participant {}", i);
@@ -75,6 +87,14 @@ pub async fn simulation(
     //--------------------------------------------------------------
     // RUN SIMULATION
     //--------------------------------------------------------------
+
+    // author creates the channel 
+    let announcement_link = on_a.send_announce().await?;
+    let ann_link_string = announcement_link.to_string();
+    println!(
+        "Announcement Link: {}\nTangle Index: {:#}\n",
+        ann_link_string, announcement_link.to_msg_index()
+    );
 
     // generate the lazy methods (currenlty the first half of the runs are 
     // 'constant true' and the second half are 'random')
@@ -94,22 +114,19 @@ pub async fn simulation(
     let mut transaction_msgs: Vec<Vec<String>> = Vec::new();
     let mut transaction_infos: Vec<Vec<IdInfoV2>> = Vec::new();
     for i in 0..runs {
-        let (verified, msgs, id_infos) = simulation_iteration(
-            node_url, client.clone(),
+        simulation_iteration(
+            node_url, 
+            on_a,
             participants,
             average_proximity,
             witness_floor,
-            lazy_methods[i].clone()
+            lazy_methods[i].clone(),
+            announcement_link
         ).await?;
-
-        if !verified {
-            panic!("One of the transactions was not verified correctly.")
-        }
-
-        transaction_msgs.push(msgs);
-        transaction_infos.push(id_infos);
-
     }
+
+    // verify the transaction
+    let (verified, msgs, pks) = verify_tx::verify_txs(node_url, ann_link_string, seed).await?;
 
     // for each run
     for i in 0..transaction_msgs.len() {
@@ -128,25 +145,13 @@ pub async fn simulation(
 // Runs a single iteration of a simualtion
 pub async fn simulation_iteration(
     node_url: &str,
-    client: Client,
+    mut on_a: &mut Author<Tangle>,
     mut participants: &mut Vec<ParticipantIdentity>,
     average_proximity: f32,
     witness_floor: usize,
-    lazy_method: LazyMethod
-) -> Result<(bool, Vec<String>, Vec<IdInfoV2>)> {
-
-    //--------------------------------------------------------------
-    // NEEDS A NEW AUTHOR TO CREATE A NEW CHANNEL
-    //--------------------------------------------------------------
-    let seed: &str = &(0..81)
-        .map(|_| {
-            ALPH9
-                .chars()
-                .nth(rand::thread_rng().gen_range(0, 27))
-                .unwrap()
-        })
-        .collect::<String>();
-    let mut on_a = Author::new(seed, ChannelType::SingleBranch, client.clone());
+    lazy_method: LazyMethod,
+    announcement_link: TangleAddress
+) -> Result<()> {
 
     //--------------------------------------------------------------
     // GENERATE GROUPS OF TRANSACATING NODES AND WITNESSES 1
@@ -164,11 +169,12 @@ pub async fn simulation_iteration(
     // PERFORM THE TRANSACTION WITH CONTRACT
     //--------------------------------------------------------------
 
-    let annoucement_msg = transact(
+    transact(
         contract,
         &mut transacting_clients,
         &mut witness_clients,
         &mut on_a,
+        announcement_link,
         lazy_method
     ).await?;
 
@@ -176,14 +182,11 @@ pub async fn simulation_iteration(
     participants.append(&mut transacting_clients);
     participants.append(&mut witness_clients);
 
-    // verify the transaction
-    let (verified, msgs, pks) = verify_tx::verify_txs(node_url, annoucement_msg, seed).await?;
-
-    // convert the channel pks to did_pubkeys to associate messages to the more relevant pubkey
+/*     // convert the channel pks to did_pubkeys to associate messages to the more relevant pubkey
     let id_infos: Vec<IdInfoV2> = pks.iter().map(|pk| find_id_info_from_channel_pk(participants, pk.clone()).unwrap().unwrap()).collect();
 
-
-    return Ok((verified, msgs, id_infos));
+ */
+    return Ok(());
 }
 
 // Generates the transacting nodes and the witnesses for the next simulation
