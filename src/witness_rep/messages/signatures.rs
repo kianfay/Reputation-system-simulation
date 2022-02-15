@@ -27,7 +27,7 @@ pub struct TransactingPreSig {
     pub contract: Contract,
     pub signer_channel_pubkey: String,
     pub witnesses: WitnessClients,
-    pub wit_node_sigs: ArrayOfWnSignitures,
+    pub wit_node_sigs: ArrayOfWnSignituresBytes,
     pub timeout: u32,
 }
 
@@ -36,8 +36,24 @@ pub struct TransactingSig {
     pub contract: Contract,
     pub signer_channel_pubkey: String,
     pub witnesses: WitnessClients,
-    pub wit_node_sigs: ArrayOfWnSignitures,
+    pub wit_node_sigs: ArrayOfWnSignituresBytes,
     pub timeout: u32,
     pub signer_did_pubkey: String,
     pub signature: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ArrayOfWnSignituresBytes(pub Vec<Vec<u8>>);
+
+
+pub fn extract_sig_from_wn_sig_struct(sig_struct: WitnessSig) -> Vec<u8> {
+    match sig_struct {
+        WitnessSig {
+            contract: _,
+            signer_channel_pubkey: _,
+            timeout: _,
+            signer_did_pubkey: _,
+            signature,
+        } => return signature
+    }
 }

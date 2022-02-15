@@ -4,7 +4,6 @@ use crate::witness_rep::{
     transaction::transaction::{transact, ParticipantIdentity, LazyMethod, IdInfo, IdInfoV2},
     utility::verify_tx,
 };
-use crate::examples::{ALPH9};
 
 use iota_streams::{
     app::transport::tangle::client::Client,
@@ -20,6 +19,8 @@ use identity::{
 use rand::Rng;
 use std::collections::BTreeSet;
 use std::convert::TryInto;
+
+pub const ALPH9: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ9";
 
 // For now this simulation is capturing the abstract scenario where the initiating participant wishes 
 // to informally buy something from somebody nearby. However, not all people around them are particpants
@@ -75,17 +76,19 @@ pub async fn simulation(
     // RUN SIMULATION
     //--------------------------------------------------------------
 
-    // generate the lazy methods (currenlty the first half are 
-    // constant true and the second half are random)
+    // generate the lazy methods (currenlty the first half of the runs are 
+    // 'constant true' and the second half are 'random')
     let lazy_methods: Vec<LazyMethod> = (0..=runs)
         .map(|x| {
-            if x > runs/2 {
+            if x >= runs/2 {
                 LazyMethod::Constant(true)
             } else {
                 LazyMethod::Random
             }
         }).collect::<Vec<LazyMethod>>()
         .try_into().expect("wrong size iterator");
+    
+        println!("Lazy methods per run{:?}", lazy_methods);
 
 
     let mut transaction_msgs: Vec<Vec<String>> = Vec::new();

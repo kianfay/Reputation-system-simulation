@@ -49,7 +49,7 @@ pub struct IdInfoV2 {
 
 pub type ParticipantIdentity = Identity<Subscriber<Client>>;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum LazyMethod {
     Constant(bool),
     Random,
@@ -183,6 +183,8 @@ pub async fn transact(
     //--------------------------------------------------------------
 
     let mut witness_sigs: Vec<signatures::WitnessSig> = Vec::new();
+    let mut witness_sigs_bytes: Vec<Vec<u8>> = Vec::new();
+
     for i in 0..witness_clients.len() {
         let multibase_pub = MethodData::new_multibase(witness_clients[i].get_public_key());
         let channel_pk_as_multibase: String;
@@ -198,7 +200,11 @@ pub async fn transact(
             witness_did_kp[i].clone(),
             DEFAULT_TIMEOUT
         )?;
-        witness_sigs.push(sig);
+        witness_sigs.push(sig.clone());
+
+        // gets the signature of the hased WitnessSignature struct
+        let sig_bytes = signatures::extract_sig_from_wn_sig_struct(sig);
+        witness_sigs_bytes.push(sig_bytes);
     }
 
     //--------------------------------------------------------------
@@ -233,7 +239,7 @@ pub async fn transact(
             channel_pk_as_multibase,
             transacting_did_kp[i].clone(),
             transaction_msgs::WitnessClients(witnesses.clone()),
-            transaction_msgs::ArrayOfWnSignitures(witness_sigs.clone()),
+            signatures::ArrayOfWnSignituresBytes(witness_sigs_bytes.clone()),
             DEFAULT_TIMEOUT
         )?;
         transacting_sigs.push(sig);

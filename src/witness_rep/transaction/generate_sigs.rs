@@ -56,7 +56,7 @@ pub fn generate_transacting_sig(
     channel_pk_as_multibase: String,
     did_keypair: KeyPair,
     witnesses: transaction_msgs::WitnessClients,
-    witness_sigs: transaction_msgs::ArrayOfWnSignitures,
+    witness_sigs: signatures::ArrayOfWnSignituresBytes,
     timeout: u32
 ) -> Result<signatures::TransactingSig> {
 

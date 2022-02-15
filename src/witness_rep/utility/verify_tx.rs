@@ -85,17 +85,29 @@ pub fn verify_msg( (tx_msg,channel_pk) : (message::Message, &String), mut valid_
         } => {
             let tx_msg = TransactionMsg {contract, witnesses, wit_node_sigs, tx_client_sigs};
             let (ArrayOfWnSignitures(wit_sigs), ArrayOfTxSignitures(tn_sigs)) = get_sigs(tx_msg);
-    
+            
+            let mut witness_sigs: Vec<Vec<u8>> = Vec::new();
+            // Check that each witness sig is valid, meaning it was sent by the owner of the DID,
+            // not just any person who holds the public key of the DID
             for ws in wit_sigs.iter() {
-                let (verified, pk) = verify_witness_sig(ws.clone())?;
+                let (verified, pk, sig) = verify_witness_sig(ws.clone())?;
                 if !verified {
                     panic!("Signature verification failed")
                 } else {
                     valid_pks.push(PublickeyOwner::Witness(pk));
+                    witness_sigs.push(sig);
                 }
             }
+
+            // Check that each tn sig is valid, similarly to the witness sig, but additionally
+            // that each participant has agreed to the witnesses specified in the tx_msg. This
+            // can be done by simply checking that all they have all the witness sigs in their
+            // own sig. By checking the sig not the pubkey of the witness, we ensure that the tn
+            // is agreeing to a specific instance of the witness agreeing to witness, not simply
+            // agreeing to have a witness witness the event.
+            witness_sigs.sort();
             for ts in tn_sigs.iter() {
-                let (verified, pk) = verify_tx_sig(ts.clone())?;
+                let (verified, pk) = verify_tx_sig(ts.clone(), witness_sigs.clone())?;
                 if !verified {
                     panic!("Signature verification failed")
                 } else {
@@ -140,8 +152,9 @@ pub fn get_sigs(tx: TransactionMsg) -> (ArrayOfWnSignitures,ArrayOfTxSignitures)
     };
 }
 
-// returns a bool indicating if valid, and a string of the channel pubkey of this sub
-pub fn verify_witness_sig(sig: signatures::WitnessSig) -> Result<(bool, String)>{
+// returns a bool indicating if valid, and a string of the channel pubkey of this sub,
+// and the sig bytes
+pub fn verify_witness_sig(sig: signatures::WitnessSig) -> Result<(bool, String, Vec<u8>)>{
     match sig {
         signatures::WitnessSig {
             contract,
@@ -163,7 +176,7 @@ pub fn verify_witness_sig(sig: signatures::WitnessSig) -> Result<(bool, String)>
             let decoded_pubkey = MethodData::try_decode(&signer_did_pubkey)?;
             let sig_unsigned = Ed25519::verify(pre_sig.as_bytes(), &signature, &decoded_pubkey);
             if let Ok(()) = sig_unsigned {
-                return Ok((true,signer_channel_pubkey));
+                return Ok((true,signer_channel_pubkey,signature));
             } else {
                 panic!("Signature verification failed")
             }
@@ -172,7 +185,7 @@ pub fn verify_witness_sig(sig: signatures::WitnessSig) -> Result<(bool, String)>
 }
 
 // returns a bool indicating if valid, and a string of the channel pubkey of this sub
-pub fn verify_tx_sig(sig: signatures::TransactingSig) -> Result<(bool, String)>{
+pub fn verify_tx_sig(sig: signatures::TransactingSig, sorted_witness_sigs: Vec<Vec<u8>>) -> Result<(bool, String)>{
     match sig {
         signatures::TransactingSig {
             contract,
@@ -183,6 +196,18 @@ pub fn verify_tx_sig(sig: signatures::TransactingSig) -> Result<(bool, String)>{
             signer_did_pubkey,
             signature,
         } => {
+
+            // Ensure that the transacting sigs reference the exact same list of witnesses
+            // as the tx_msg. We can do this quickly by sorting both lists, and checking for
+            // equality (instead of checking each sig one at a time)
+            let mut sorted_wn_sigs_to_check = wit_node_sigs.clone().0;
+            sorted_wn_sigs_to_check.sort();
+
+            if sorted_wn_sigs_to_check != sorted_witness_sigs {
+                panic!("The witnesses linked in the transacting sig differ from those in the transaction message")
+            }
+
+
             let pre_sig = signatures::TransactingPreSig {
                 contract,
                 signer_channel_pubkey: signer_channel_pubkey.clone(),
