@@ -84,6 +84,8 @@ pub async fn simulation(
         participants.push(id);
     }
 
+    println!("Can be used to make debugging faster by swapping in for did_kps[i]: {:?} ", did_kps);
+
     //--------------------------------------------------------------
     // RUN SIMULATION
     //--------------------------------------------------------------

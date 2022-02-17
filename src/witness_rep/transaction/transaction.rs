@@ -157,14 +157,31 @@ pub async fn transact(
     // participants process the channel announcement
     let ann_address = Address::try_from_bytes(&announcement_link.to_bytes())?;
     for i in 0..transacting_clients.len() {
+        println!("here1");
         transacting_clients[i].receive_announcement(&ann_address).await?;
+        println!("here2");
         let subscribe_msg = transacting_clients[i].send_subscribe(&ann_address).await?;
-        organization_client.receive_subscribe(&subscribe_msg).await?;
+        println!("here3");
+
+        let sub_result = organization_client.receive_subscribe(&subscribe_msg).await;
+
+        // either the subscribe works and the program continues, or it doesnt because
+        // the author already has the tn as a subscriber and the program continues
+        match sub_result {
+            Ok(()) => {},
+            Err(_) => {},
+        };
+        println!("here4");
     }
     for i in 0..witness_clients.len() {
         witness_clients[i].receive_announcement(&ann_address).await?;
         let subscribe_msg = witness_clients[i].send_subscribe(&ann_address).await?;
-        organization_client.receive_subscribe(&subscribe_msg).await?;
+        let sub_result = organization_client.receive_subscribe(&subscribe_msg).await;
+
+        match sub_result {
+            Ok(()) => {},
+            Err(_) => {},
+        };
     }
 
     let (keyload_a_link, _seq_a_link) =
