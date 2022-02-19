@@ -35,16 +35,19 @@ pub struct Identity<C> {
     pub id_info: IdInfo
 }
 
-
+// This is all of the external information about a participant, including their
+// decentralised ID and their reliability
 pub struct IdInfo {
     pub did_key: Key,
     pub reliability: f32,
+    pub org_cert: signatures::OrgCert
 }
 
 #[derive(Debug)]
 pub struct IdInfoV2 {
     pub did_pubkey: String,
     pub reliability: f32,
+    pub org_cert: signatures::OrgCert
 }
 
 pub type ParticipantIdentity = Identity<Subscriber<Client>>;
@@ -57,33 +60,40 @@ pub enum LazyMethod {
 
 //pub type OrganizationIdentity = Identity<Author<Client>>;
 
-pub fn extract_from_id(id: &mut ParticipantIdentity) -> Result<(&mut Subscriber<Client>, KeyPair, f32)> {
+pub fn extract_from_id(
+    id: &mut ParticipantIdentity
+) -> Result<(&mut Subscriber<Client>, KeyPair, f32, signatures::OrgCert)> {
     match id {
         ParticipantIdentity { 
             channel_client,
             id_info: IdInfo { 
                 did_key,
-                reliability
+                reliability,
+                org_cert
             }
         } => {
             let did_keypair = KeyPair::try_from_ed25519_bytes(did_key)?;
-            return Ok((channel_client, did_keypair,reliability.clone()));
+            return Ok((channel_client, did_keypair,reliability.clone(), org_cert.clone()));
         }
     }
 }
 
-pub fn extract_from_ids(ids: &mut Vec<ParticipantIdentity>) -> Result<(Vec<&mut Subscriber<Client>>, Vec<KeyPair>, Vec<f32>)> {
+pub fn extract_from_ids(
+    ids: &mut Vec<ParticipantIdentity>
+) -> Result<(Vec<&mut Subscriber<Client>>, Vec<KeyPair>, Vec<f32>, Vec<signatures::OrgCert>)> {
     let mut subs: Vec<&mut Subscriber<Client>>  = Vec::new();
     let mut kps : Vec<KeyPair>                  = Vec::new();
     let mut rels: Vec<f32>                      = Vec::new();
+    let mut orgs: Vec<signatures::OrgCert>      = Vec::new();
 
     for id in ids {
-        let (sub, kp, rel) = extract_from_id(id)?;
+        let (sub, kp, rel, org) = extract_from_id(id)?;
         subs.push(sub);
         kps.push(kp);
         rels.push(rel);
+        orgs.push(org);
     }
-    return Ok((subs, kps,rels));
+    return Ok((subs, kps,rels,orgs));
 }
 
 pub async fn sync_all(subs: &mut Vec<&mut Subscriber<Client>>) -> Result<()> {
@@ -144,8 +154,8 @@ pub async fn transact(
     //--------------------------------------------------------------
     // EXTRACT CLIENTS AND KEYPAIRS FROM IDENTITIES
     //--------------------------------------------------------------
-    let (mut transacting_clients, transacting_did_kp, transacting_reliablity) = extract_from_ids(transacting_ids)?;
-    let (mut witness_clients, witness_did_kp, witness_reliability) = extract_from_ids(witness_ids)?;
+    let (mut transacting_clients, transacting_did_kp, transacting_reliablity, transacting_org_certs) = extract_from_ids(transacting_ids)?;
+    let (mut witness_clients, witness_did_kp, witness_reliability, witness_org_certs) = extract_from_ids(witness_ids)?;
 
 
     //--------------------------------------------------------------
@@ -157,12 +167,8 @@ pub async fn transact(
     // participants process the channel announcement
     let ann_address = Address::try_from_bytes(&announcement_link.to_bytes())?;
     for i in 0..transacting_clients.len() {
-        println!("here1");
         transacting_clients[i].receive_announcement(&ann_address).await?;
-        println!("here2");
         let subscribe_msg = transacting_clients[i].send_subscribe(&ann_address).await?;
-        println!("here3");
-
         let sub_result = organization_client.receive_subscribe(&subscribe_msg).await;
 
         // either the subscribe works and the program continues, or it doesnt because
@@ -171,7 +177,6 @@ pub async fn transact(
             Ok(()) => {},
             Err(_) => {},
         };
-        println!("here4");
     }
     for i in 0..witness_clients.len() {
         witness_clients[i].receive_announcement(&ann_address).await?;
@@ -208,9 +213,11 @@ pub async fn transact(
             panic!("Could not encode public key as multibase")
         }
 
-        let sig = generate_sigs::generate_witness_sig(contract.clone(),
+        let sig = generate_sigs::generate_witness_sig(
+            contract.clone(),
             channel_pk_as_multibase,
             witness_did_kp[i].clone(),
+            witness_org_certs[i].clone(),
             DEFAULT_TIMEOUT
         )?;
         witness_sigs.push(sig.clone());
@@ -253,6 +260,7 @@ pub async fn transact(
             transacting_did_kp[i].clone(),
             transaction_msgs::WitnessClients(witnesses.clone()),
             signatures::ArrayOfWnSignituresBytes(witness_sigs_bytes.clone()),
+            transacting_org_certs[i].clone(),
             DEFAULT_TIMEOUT
         )?;
         transacting_sigs.push(sig);

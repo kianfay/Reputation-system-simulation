@@ -41,7 +41,8 @@ async fn main() -> Result<()> {
     //let annoucement_msg = String::from("7ef5fbaa68868808b65154b311f0872cee627258ebca1ab90a9648849043034e0000000000000000:1d03be69bc0fbaee3b76e0d6");
     //let reliability = vec![1.0, 0.8, 1.0, 1.0, 1.0, 0.5, 0.5, 0.75, 0.5, 0.9, 1.0];
     let reliability = vec![1.0; 4];
-    witness_rep::simulation::simulation(url, 4, 1.0, 2, 2, reliability).await?;
+    let organizations = vec![0,0,1,1];
+    witness_rep::simulation::simulation(url, 4, 1.0, 2, 2, reliability, organizations).await?;
 
 
 /* 

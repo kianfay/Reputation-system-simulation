@@ -159,6 +159,7 @@ pub fn verify_witness_sig(sig: signatures::WitnessSig) -> Result<(bool, String, 
         signatures::WitnessSig {
             contract,
             signer_channel_pubkey,
+            org_cert,
             timeout,
             signer_did_pubkey,
             signature,
@@ -166,6 +167,7 @@ pub fn verify_witness_sig(sig: signatures::WitnessSig) -> Result<(bool, String, 
             let pre_sig = signatures::WitnessPreSig {
                 contract,
                 signer_channel_pubkey: signer_channel_pubkey.clone(),
+                org_cert: org_cert.clone(),
                 timeout,
             };
             //println!("IMPORTANT: {:?}", pre_sig);
@@ -192,6 +194,7 @@ pub fn verify_tx_sig(sig: signatures::TransactingSig, sorted_witness_sigs: Vec<V
             signer_channel_pubkey,
             witnesses,
             wit_node_sigs,
+            org_cert,
             timeout,
             signer_did_pubkey,
             signature,
@@ -213,6 +216,7 @@ pub fn verify_tx_sig(sig: signatures::TransactingSig, sorted_witness_sigs: Vec<V
                 signer_channel_pubkey: signer_channel_pubkey.clone(),
                 witnesses,
                 wit_node_sigs,
+                org_cert: org_cert.clone(),
                 timeout,
             };
 

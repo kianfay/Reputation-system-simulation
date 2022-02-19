@@ -1,7 +1,8 @@
 use crate::witness_rep::{
-    iota_did::create_and_upload_did::{create_n_dids, Key},
-    transaction::generate_contract,
+    iota_did::create_and_upload_did::{create_n_dids, Key, RunMode},
+    transaction::{generate_contract, generate_sigs},
     transaction::transaction::{transact, ParticipantIdentity, LazyMethod, IdInfo, IdInfoV2},
+    messages::signatures::{OrgCertPreSig, OrgCert},
     utility::verify_tx,
 };
 
@@ -15,13 +16,18 @@ use iota_streams::{
 };
 use identity::{
     did::MethodData,
-    crypto::KeyPair
+    crypto::KeyPair,
 };
+
 use rand::Rng;
 use std::collections::BTreeSet;
+use std::collections::HashSet;
+use std::collections::HashMap;
 use std::convert::TryInto;
+use std::iter::FromIterator;
 
 pub const ALPH9: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ9";
+pub const DEFAULT_DURATION: u32 = 60*60*24*365; // 1 year
 
 // For now this simulation is capturing the abstract scenario where the initiating participant wishes 
 // to informally buy something from somebody nearby. However, not all people around them are particpants
@@ -31,19 +37,47 @@ pub const ALPH9: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ9";
 // Params:
 //      - average_proximity: [0,1], 1 meaning all participants are in range
 //      - witness_floor: the minimum number of witnesses in a transaction
+//      - runs: the number of iterations of the simulations
+//      - reliability: an array assigning a reliability score to participants at the respective indices
+//      - organizations: an array assigning a organization to participants at the respective indices
 pub async fn simulation(
     node_url: &str,
     num_participants: usize,
     average_proximity: f32,
     witness_floor: usize,
     runs: usize,
-    reliability: Vec<f32>
+    reliability: Vec<f32>,
+    organizations: Vec<usize>
 ) -> Result<()> {
 
     if reliability.len() != num_participants {
-        panic!("Number of elements in 'reliability' parameter must equal the num_participants!")
+        panic!("Number of elements in 'reliability' parameter must equal the num_participants!");
+    } else if reliability.len() != num_participants {
+        panic!("Number of elements in 'organizations' parameter must equal the num_participants!");
     }
+
+
     //--------------------------------------------------------------
+    //--------------------------------------------------------------
+    //  CREATE ORGANIZATIONS WHICH ACT AS AN OVERLAY FOR PARTICIPANTS
+    //--------------------------------------------------------------
+
+    // we find the set of organizations
+    let orgs_set: HashSet<&usize> = HashSet::from_iter(organizations.iter());
+    let orgs: Vec<&usize> = orgs_set.into_iter().collect();
+
+    // in their simplest form, an organization can be represented by
+    // a keypair, so we assign one to each organization
+    let org_did_details = create_n_dids(orgs.len(), RunMode::Testing).await?;
+
+    // we create a mapping of organization index to public key
+    let mut org_kp_map: HashMap<usize, KeyPair> = HashMap::new();
+    let mut i = 0;
+    for (_, (kp, _), _) in org_did_details {
+        org_kp_map.insert(orgs[i].clone(), kp);
+        i += 1;
+    }
+
     //--------------------------------------------------------------
     // CREATE PARTICIPANTS FOR SIMULATION
     // (MORE DETAILS IN ALL_IN_ONE_TRANSACTION.RS)
@@ -62,11 +96,16 @@ pub async fn simulation(
     let on_a: &mut Author<Tangle> = &mut Author::new(seed, ChannelType::MultiBranch, client.clone());
     
     // create Decentalised Ids (for now, none needed for the organization)
-    let did_details = create_n_dids(num_participants).await?;
+    let did_details = create_n_dids(num_participants, RunMode::Testing).await?;
     
-    let did_kps : Vec<Key> = did_details
+    let part_did_secret : Vec<Key> = did_details
                                             .iter()
                                             .map(|(_, (_,(_, privkey)), _)| *privkey)
+                                            .collect();
+    
+    let part_did_kps : Vec<&KeyPair> = did_details
+                                            .iter()
+                                            .map(|(_, (kp,_), _)| kp)
                                             .collect();
 
     // create channel subscriber instances
@@ -74,17 +113,21 @@ pub async fn simulation(
     for i in 0..num_participants{
         let name = format!("Participant {}", i);
         let tn = Subscriber::new(&name, client.clone());
+        let org_kp = &org_kp_map[&organizations[i]];
+        let part_did_pk = generate_sigs::get_multibase(&part_did_kps[i]);
+
         let id = ParticipantIdentity {
             channel_client: tn,
             id_info: IdInfo {
-                did_key: did_kps[i],
-                reliability: reliability[i]
+                did_key: part_did_secret[i],
+                reliability: reliability[i],
+                org_cert: generate_sigs::generate_org_cert(part_did_pk, org_kp, DEFAULT_DURATION)?
             }
         };
         participants.push(id);
     }
 
-    println!("Can be used to make debugging faster by swapping in for did_kps[i]: {:?} ", did_kps);
+    println!("Can be used to make debugging faster by swapping in for did_kps[i]: {:?} ", part_did_secret);
 
     //--------------------------------------------------------------
     // RUN SIMULATION
@@ -268,7 +311,8 @@ pub fn find_id_info_from_channel_pk(
                 channel_client,
                 id_info: IdInfo {
                     did_key,
-                    reliability
+                    reliability,
+                    org_cert
                 }
             } => {
                 let multibase_pub = MethodData::new_multibase(channel_client.get_public_key());
@@ -279,7 +323,8 @@ pub fn find_id_info_from_channel_pk(
                         if let MethodData::PublicKeyMultibase(did_pubkey) = multibase_did_pub {
                             return Ok(Some(IdInfoV2 {
                                 did_pubkey: did_pubkey,
-                                reliability: reliability.clone()
+                                reliability: reliability.clone(),
+                                org_cert: org_cert.clone(),
                             }));
                         }
                     }

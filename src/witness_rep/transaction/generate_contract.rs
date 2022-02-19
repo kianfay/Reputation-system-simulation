@@ -19,7 +19,8 @@ pub fn generate_contract(transacting_ids: &mut Vec<ParticipantIdentity>) -> Resu
             channel_client: _,
             id_info: IdInfo{
                 did_key,
-                reliability: _
+                reliability: _,
+                org_cert: _
             }
         }| {
             let kp = KeyPair::try_from_ed25519_bytes(did_key)?;
