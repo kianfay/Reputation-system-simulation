@@ -1,6 +1,10 @@
 use crate::witness_rep::{
-    iota_did::create_and_upload_did::Key,
-    transaction::generate_sigs,
+    transaction::{
+        generate_sigs, 
+        participant::{
+            ParticipantIdentity, IdInfo
+        }
+    },
 };
 
 use trust_score_generator::trust_score_generators::{
@@ -32,38 +36,6 @@ use identity::{
 };
 use rand::Rng;
 
-
-// The identity captures the channel client and the associated keypair,
-// as well as the keypair associated to the participants DID. It also has their 
-// 'reliability', [0,1], an unambiguous/simplistic measure of the honesty of their
-// actions. A score of 1 means they are always honest, and 0 means always dishonest.
-// A more dishonest participant will more likely to give a either not uphold their
-// half of an agreement, or more likely to give a lazy witness statement (i.e. not
-// depending on the actual event), or to possibly collude or act with malice to 
-// either gain an advantage in monetary or trust score terms (or damage other 
-// participant).
-pub struct Identity<C> {
-    pub channel_client: C,
-    pub id_info: IdInfo
-}
-
-// This is all of the external information about a participant, including their
-// decentralised ID and their reliability
-pub struct IdInfo {
-    pub did_key: Key,
-    pub reliability: f32,
-    pub org_cert: organization_cert::OrgCert
-}
-
-#[derive(Debug)]
-pub struct IdInfoV2 {
-    pub did_pubkey: String,
-    pub reliability: f32,
-    pub org_cert: organization_cert::OrgCert
-}
-
-pub type ParticipantIdentity = Identity<Subscriber<Client>>;
-
 #[derive(Clone, Debug)]
 pub enum LazyMethod {
     Constant(bool),
@@ -82,7 +54,8 @@ pub fn extract_from_id(
                 did_key,
                 reliability,
                 org_cert
-            }
+            },
+            reliability_map: _
         } => {
             let did_keypair = KeyPair::try_from_ed25519_bytes(did_key)?;
             return Ok((channel_client, did_keypair,reliability.clone(), org_cert.clone()));

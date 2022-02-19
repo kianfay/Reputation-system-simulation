@@ -1,7 +1,10 @@
 use crate::witness_rep::{
     iota_did::create_and_upload_did::{create_n_dids, Key, RunMode},
     transaction::{generate_contract, generate_sigs},
-    transaction::transaction::{transact, ParticipantIdentity, LazyMethod, IdInfo, IdInfoV2},
+    transaction::{
+        transaction::{transact, LazyMethod},
+        participant::{ParticipantIdentity, IdInfo, ReliabilityMap}
+    },
     utility::verify_tx,
 };
 
@@ -14,7 +17,6 @@ use iota_streams::{
     core::Result
 };
 use identity::{
-    did::MethodData,
     crypto::KeyPair,
 };
 
@@ -114,6 +116,7 @@ pub async fn simulation(
         let tn = Subscriber::new(&name, client.clone());
         let org_kp = &org_kp_map[&organizations[i]];
         let part_did_pk = generate_sigs::get_multibase(&part_did_kps[i]);
+        let reliability_map: ReliabilityMap = HashMap::new();
 
         let id = ParticipantIdentity {
             channel_client: tn,
@@ -121,7 +124,8 @@ pub async fn simulation(
                 did_key: part_did_secret[i],
                 reliability: reliability[i],
                 org_cert: generate_sigs::generate_org_cert(part_did_pk, org_kp, DEFAULT_DURATION)?
-            }
+            },
+            reliability_map: reliability_map
         };
         participants.push(id);
     }
@@ -221,10 +225,6 @@ pub async fn simulation_iteration(
     participants.append(&mut transacting_clients);
     participants.append(&mut witness_clients);
 
-/*     // convert the channel pks to did_pubkeys to associate messages to the more relevant pubkey
-    let id_infos: Vec<IdInfoV2> = pks.iter().map(|pk| find_id_info_from_channel_pk(participants, pk.clone()).unwrap().unwrap()).collect();
-
- */
     return Ok(());
 }
 
@@ -293,41 +293,4 @@ pub fn generate_trans_and_witnesses(
     }
 
     return Ok((transacting_clients_1, witness_clients_1));
-}
-
-pub fn find_id_info_from_channel_pk(
-    participants: &mut Vec<ParticipantIdentity>,
-    channel_pk: String
-) -> Result<Option<IdInfoV2>> {
-    for part in participants {
-        match part {
-            ParticipantIdentity {
-                channel_client,
-                id_info: IdInfo {
-                    did_key,
-                    reliability,
-                    org_cert
-                }
-            } => {
-                let multibase_pub = MethodData::new_multibase(channel_client.get_public_key());
-                if let MethodData::PublicKeyMultibase(mbpub) = multibase_pub {
-                    if mbpub == channel_pk {
-                        let did_keypair = KeyPair::try_from_ed25519_bytes(did_key)?;
-                        let multibase_did_pub = MethodData::new_multibase(did_keypair.public());
-                        if let MethodData::PublicKeyMultibase(did_pubkey) = multibase_did_pub {
-                            return Ok(Some(IdInfoV2 {
-                                did_pubkey: did_pubkey,
-                                reliability: reliability.clone(),
-                                org_cert: org_cert.clone(),
-                            }));
-                        }
-                    }
-                }
-                else {
-                    panic!("Could not encode public key as multibase")
-                }
-            }
-        }
-    }
-    return Ok(None);
 }

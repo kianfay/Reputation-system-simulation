@@ -1,5 +1,7 @@
 use crate::witness_rep::{
-    transaction::transaction::{ParticipantIdentity,IdInfo},
+    transaction::participant::{
+        ParticipantIdentity, IdInfo
+    },
 };
 
 use trust_score_generator::trust_score_generators::data_types::{
@@ -24,7 +26,8 @@ pub fn generate_contract(transacting_ids: &mut Vec<ParticipantIdentity>) -> Resu
                 did_key,
                 reliability: _,
                 org_cert: _
-            }
+            },
+            reliability_map: _
         }| {
             let kp = KeyPair::try_from_ed25519_bytes(did_key)?;
             let multibase_pub = MethodData::new_multibase(kp.public());
