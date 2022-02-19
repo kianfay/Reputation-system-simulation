@@ -1,12 +1,18 @@
 use crate::witness_rep::{
-    utility::extract_msgs,
-    messages::{
-        message,
-        signatures,
-        transaction_msgs::{
-            TransactionMsg, ArrayOfTxSignitures, ArrayOfWnSignitures
+    utility::extract_msgs
+};
+
+use trust_score_generator::trust_score_generators::{
+    data_types::{
+        messages::{
+            tx_messages as message,
+            contract::{Contract},
+            signatures::{
+                witness_sig, transacting_sig, organization_cert
+            },
+            tx_messages::WitnessClients
         }
-    }
+    },
 };
 
 use iota_streams::{
@@ -83,8 +89,8 @@ pub fn verify_msg( (tx_msg,channel_pk) : (message::Message, &String), mut valid_
         message::Message::TransactionMsg {
             contract, witnesses, wit_node_sigs, tx_client_sigs
         } => {
-            let tx_msg = TransactionMsg {contract, witnesses, wit_node_sigs, tx_client_sigs};
-            let (ArrayOfWnSignitures(wit_sigs), ArrayOfTxSignitures(tn_sigs)) = get_sigs(tx_msg);
+            let tx_msg = message::Message::TransactionMsg {contract, witnesses, wit_node_sigs, tx_client_sigs};
+            let (message::ArrayOfWnSignitures(wit_sigs), message::ArrayOfTxSignitures(tn_sigs)) = get_sigs(tx_msg);
             
             let mut witness_sigs: Vec<Vec<u8>> = Vec::new();
             // Check that each witness sig is valid, meaning it was sent by the owner of the DID,
@@ -141,22 +147,27 @@ pub fn verify_msg( (tx_msg,channel_pk) : (message::Message, &String), mut valid_
     return Ok((false, None));
 }
 
-pub fn get_sigs(tx: TransactionMsg) -> (ArrayOfWnSignitures,ArrayOfTxSignitures) {
+pub fn get_sigs(
+    tx: message::Message
+) -> (message::ArrayOfWnSignitures,message::ArrayOfTxSignitures) {
     match tx {
-        TransactionMsg {
+        message::Message::TransactionMsg {
             contract: _,
             witnesses: _,
             wit_node_sigs,
             tx_client_sigs,
-        } => return (wit_node_sigs, tx_client_sigs)
+        } => return (wit_node_sigs, tx_client_sigs),
+        _ => panic!("Can only get signatures from a TransactionMsg message")
     };
 }
 
 // returns a bool indicating if valid, and a string of the channel pubkey of this sub,
 // and the sig bytes
-pub fn verify_witness_sig(sig: signatures::WitnessSig) -> Result<(bool, String, Vec<u8>)>{
+pub fn verify_witness_sig(
+    sig: witness_sig::WitnessSig
+) -> Result<(bool, String, Vec<u8>)>{
     match sig {
-        signatures::WitnessSig {
+        witness_sig::WitnessSig {
             contract,
             signer_channel_pubkey,
             org_cert,
@@ -164,7 +175,7 @@ pub fn verify_witness_sig(sig: signatures::WitnessSig) -> Result<(bool, String, 
             signer_did_pubkey,
             signature,
         } => {
-            let pre_sig = signatures::WitnessPreSig {
+            let pre_sig = witness_sig::WitnessPreSig {
                 contract,
                 signer_channel_pubkey: signer_channel_pubkey.clone(),
                 org_cert: org_cert.clone(),
@@ -187,9 +198,9 @@ pub fn verify_witness_sig(sig: signatures::WitnessSig) -> Result<(bool, String, 
 }
 
 // returns a bool indicating if valid, and a string of the channel pubkey of this sub
-pub fn verify_tx_sig(sig: signatures::TransactingSig, sorted_witness_sigs: Vec<Vec<u8>>) -> Result<(bool, String)>{
+pub fn verify_tx_sig(sig: transacting_sig::TransactingSig, sorted_witness_sigs: Vec<Vec<u8>>) -> Result<(bool, String)>{
     match sig {
-        signatures::TransactingSig {
+        transacting_sig::TransactingSig {
             contract,
             signer_channel_pubkey,
             witnesses,
@@ -211,7 +222,7 @@ pub fn verify_tx_sig(sig: signatures::TransactingSig, sorted_witness_sigs: Vec<V
             }
 
 
-            let pre_sig = signatures::TransactingPreSig {
+            let pre_sig = transacting_sig::TransactingPreSig {
                 contract,
                 signer_channel_pubkey: signer_channel_pubkey.clone(),
                 witnesses,

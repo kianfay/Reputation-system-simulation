@@ -1,9 +1,21 @@
 use crate::witness_rep::{
     iota_did::create_and_upload_did::Key,
-    messages::{
-        message, signatures, transaction_msgs
-    },
     transaction::generate_sigs,
+};
+
+use trust_score_generator::trust_score_generators::{
+    data_types::{
+        messages::{
+            tx_messages as message,
+            contract::{Contract, PublicKey},
+            signatures::{
+                witness_sig, transacting_sig, organization_cert, 
+            },
+            tx_messages::{
+                WitnessClients, ArrayOfWnSignitures, ArrayOfTxSignitures
+            }
+        }
+    }
 };
 
 use iota_streams::{
@@ -40,14 +52,14 @@ pub struct Identity<C> {
 pub struct IdInfo {
     pub did_key: Key,
     pub reliability: f32,
-    pub org_cert: signatures::OrgCert
+    pub org_cert: organization_cert::OrgCert
 }
 
 #[derive(Debug)]
 pub struct IdInfoV2 {
     pub did_pubkey: String,
     pub reliability: f32,
-    pub org_cert: signatures::OrgCert
+    pub org_cert: organization_cert::OrgCert
 }
 
 pub type ParticipantIdentity = Identity<Subscriber<Client>>;
@@ -62,7 +74,7 @@ pub enum LazyMethod {
 
 pub fn extract_from_id(
     id: &mut ParticipantIdentity
-) -> Result<(&mut Subscriber<Client>, KeyPair, f32, signatures::OrgCert)> {
+) -> Result<(&mut Subscriber<Client>, KeyPair, f32, organization_cert::OrgCert)> {
     match id {
         ParticipantIdentity { 
             channel_client,
@@ -80,11 +92,11 @@ pub fn extract_from_id(
 
 pub fn extract_from_ids(
     ids: &mut Vec<ParticipantIdentity>
-) -> Result<(Vec<&mut Subscriber<Client>>, Vec<KeyPair>, Vec<f32>, Vec<signatures::OrgCert>)> {
+) -> Result<(Vec<&mut Subscriber<Client>>, Vec<KeyPair>, Vec<f32>, Vec<organization_cert::OrgCert>)> {
     let mut subs: Vec<&mut Subscriber<Client>>  = Vec::new();
     let mut kps : Vec<KeyPair>                  = Vec::new();
     let mut rels: Vec<f32>                      = Vec::new();
-    let mut orgs: Vec<signatures::OrgCert>      = Vec::new();
+    let mut orgs: Vec<organization_cert::OrgCert>      = Vec::new();
 
     for id in ids {
         let (sub, kp, rel, org) = extract_from_id(id)?;
@@ -141,7 +153,7 @@ pub fn lazy_outcome(lazy_method: &LazyMethod) -> bool {
 
 
 pub async fn transact(
-    contract: transaction_msgs::Contract,
+    contract: Contract,
     transacting_ids: &mut Vec<ParticipantIdentity>,
     witness_ids: &mut Vec<ParticipantIdentity>,
     organization_client: &mut Author<Client>,
@@ -200,7 +212,7 @@ pub async fn transact(
     // WITNESSES GENERATE SIGS
     //--------------------------------------------------------------
 
-    let mut witness_sigs: Vec<signatures::WitnessSig> = Vec::new();
+    let mut witness_sigs: Vec<witness_sig::WitnessSig> = Vec::new();
     let mut witness_sigs_bytes: Vec<Vec<u8>> = Vec::new();
 
     for i in 0..witness_clients.len() {
@@ -223,7 +235,7 @@ pub async fn transact(
         witness_sigs.push(sig.clone());
 
         // gets the signature of the hased WitnessSignature struct
-        let sig_bytes = signatures::extract_sig_from_wn_sig_struct(sig);
+        let sig_bytes = sig.signature;
         witness_sigs_bytes.push(sig_bytes);
     }
 
@@ -231,7 +243,7 @@ pub async fn transact(
     // TRANSACTING NODES GENERATE SIGS
     //--------------------------------------------------------------
 
-    let witnesses: Vec<transaction_msgs::PublicKey> = witness_did_kp
+    let witnesses: Vec<PublicKey> = witness_did_kp
         .iter()
         .map(|kp| {
             let multibase_pub = MethodData::new_multibase(kp.public());
@@ -244,7 +256,7 @@ pub async fn transact(
         })
         .collect();
 
-    let mut transacting_sigs: Vec<signatures::TransactingSig> = Vec::new();
+    let mut transacting_sigs: Vec<transacting_sig::TransactingSig> = Vec::new();
     for i in 0..transacting_clients.len() {
         let multibase_pub = MethodData::new_multibase(transacting_clients[i].get_public_key());
         let channel_pk_as_multibase: String;
@@ -258,8 +270,8 @@ pub async fn transact(
             contract.clone(),
             channel_pk_as_multibase,
             transacting_did_kp[i].clone(),
-            transaction_msgs::WitnessClients(witnesses.clone()),
-            signatures::ArrayOfWnSignituresBytes(witness_sigs_bytes.clone()),
+            WitnessClients(witnesses.clone()),
+            transacting_sig::ArrayOfWnSignituresBytes(witness_sigs_bytes.clone()),
             transacting_org_certs[i].clone(),
             DEFAULT_TIMEOUT
         )?;
@@ -273,9 +285,9 @@ pub async fn transact(
 
     let transaction_msg = message::Message::TransactionMsg {
         contract: contract.clone(),
-        witnesses: transaction_msgs::WitnessClients(witnesses.clone()),
-        wit_node_sigs: transaction_msgs::ArrayOfWnSignitures(witness_sigs.clone()),
-        tx_client_sigs: transaction_msgs::ArrayOfTxSignitures(transacting_sigs.clone()),
+        witnesses: WitnessClients(witnesses.clone()),
+        wit_node_sigs: ArrayOfWnSignitures(witness_sigs.clone()),
+        tx_client_sigs: ArrayOfTxSignitures(transacting_sigs.clone()),
     };
     
     //--------------------------------------------------------------

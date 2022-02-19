@@ -6,6 +6,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+trust-score-generator = { git = "https://github.com/kianfay/trust-score-generator" }
 identity = { git = "https://github.com/iotaledger/identity.rs", branch = "dev", features = ["account"] }
 iota-streams = { git = "https://github.com/iotaledger/streams", branch = "develop", version = "0.1.2"}
 iota-crypto = { git = "https://github.com/iotaledger/crypto.rs", features = ["random","ed25519"], branch = "dev", version = "0.9.1"}

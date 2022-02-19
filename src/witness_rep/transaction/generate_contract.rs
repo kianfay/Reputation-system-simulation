@@ -1,6 +1,9 @@
 use crate::witness_rep::{
-    messages::transaction_msgs,
     transaction::transaction::{ParticipantIdentity,IdInfo},
+};
+
+use trust_score_generator::trust_score_generators::data_types::{
+    messages::contract::{Contract, TransactingClients}
 };
 
 use iota_streams::{
@@ -11,7 +14,7 @@ use identity::{
     crypto::KeyPair
 };
 
-pub fn generate_contract(transacting_ids: &mut Vec<ParticipantIdentity>) -> Result<transaction_msgs::Contract> {
+pub fn generate_contract(transacting_ids: &mut Vec<ParticipantIdentity>) -> Result<Contract> {
     // get the did pubkeys from the ids
     let did_pubkeys_res : Result<Vec<String>> = transacting_ids
         .iter()
@@ -37,9 +40,9 @@ pub fn generate_contract(transacting_ids: &mut Vec<ParticipantIdentity>) -> Resu
     let did_pubkeys = did_pubkeys_res?;
     
     // generate the contract
-    let contract_hardcoded = transaction_msgs::Contract {
+    let contract_hardcoded = Contract {
         contract_definition: String::from("tn_b allows tn_a take their place in the queue"),               
-        participants: transaction_msgs::TransactingClients(
+        participants: TransactingClients(
             did_pubkeys
         ),      
         time: 1643572739,

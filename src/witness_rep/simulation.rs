@@ -2,7 +2,6 @@ use crate::witness_rep::{
     iota_did::create_and_upload_did::{create_n_dids, Key, RunMode},
     transaction::{generate_contract, generate_sigs},
     transaction::transaction::{transact, ParticipantIdentity, LazyMethod, IdInfo, IdInfoV2},
-    messages::signatures::{OrgCertPreSig, OrgCert},
     utility::verify_tx,
 };
 
@@ -126,9 +125,7 @@ pub async fn simulation(
         };
         participants.push(id);
     }
-
-    println!("Can be used to make debugging faster by swapping in for did_kps[i]: {:?} ", part_did_secret);
-
+    
     //--------------------------------------------------------------
     // RUN SIMULATION
     //--------------------------------------------------------------
