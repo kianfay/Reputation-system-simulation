@@ -152,12 +152,8 @@ pub async fn simulation(
             }
         }).collect::<Vec<LazyMethod>>()
         .try_into().expect("wrong size iterator");
-    
-        println!("Lazy methods per run{:?}", lazy_methods);
+    println!("Lazy methods per run{:?}", lazy_methods);
 
-
-    let mut transaction_msgs: Vec<Vec<String>> = Vec::new();
-    let mut transaction_infos: Vec<Vec<IdInfoV2>> = Vec::new();
     for i in 0..runs {
         simulation_iteration(
             node_url, 
@@ -173,14 +169,15 @@ pub async fn simulation(
     // verify the transaction
     let (verified, msgs, pks) = verify_tx::verify_txs(node_url, ann_link_string, seed).await?;
 
-    // for each run
-    for i in 0..transaction_msgs.len() {
-        // for each message in this run
-        for j in 0..transaction_msgs[i].len() {
-            // print the message and then the id_info of the sender
-            print!("{:?}", transaction_msgs[i][j]);
-            println!("{:?}", transaction_infos[i][j]);
-        }
+    if !verified {
+        panic!("One of the messages could not be verified");
+    }
+
+    // for each message
+    for i in 0..msgs.len() {
+        // print the message and then the id_info of the sender
+        print!("Message {:?}", msgs[i]);
+        println!("Channel pubkey: {:?}", pks[i]);
     }
     
     return Ok(());
