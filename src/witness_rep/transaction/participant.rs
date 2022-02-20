@@ -8,7 +8,7 @@ use trust_score_generator::trust_score_generators::{
 
 use iota_streams::{
     app::transport::tangle::client::Client,
-    app_channels::api::tangle::Subscriber
+    app_channels::api::tangle::{Subscriber, Author}
 };
 
 use std::collections::HashMap;
@@ -28,7 +28,21 @@ pub struct Identity<C> {
     pub reliability_map: ReliabilityMap
 }
 
+impl<C> Identity<C> {
+    pub fn update_reliability(&mut self, new_estimates: Vec<(String, f32)>){
+        for (pubkey, estimate) in new_estimates {
+            // inserts the default value if the entry does not yet exist
+            self.reliability_map.entry(pubkey.clone()).or_insert((0.0, 0));
+
+            // remove the old mapping, and then update and re-insert
+            let (score, estimate_count) = self.reliability_map.remove(&pubkey).unwrap();
+            self.reliability_map.insert(pubkey, (score + estimate, estimate_count + 1));
+        }        
+    }
+}
+
 pub type ParticipantIdentity = Identity<Subscriber<Client>>;
+pub type OrganizationIdentity = Identity<Author<Client>>;
 
 // This is all of the external information about a participant, including their
 // decentralised ID and their reliability
@@ -47,8 +61,34 @@ pub type ReliabilityMap = HashMap<String, ReliabilityComponents>;
 // and the score is 1.5/2=0.75
 pub type ReliabilityComponents = (f32, usize);
 
-pub fn calculate_score(components: ReliabilityComponents) -> f32 {
+pub fn calculate_score(components: &ReliabilityComponents) -> f32 {
     return components.0 / components.1 as f32;
 }
 
 
+#[test]
+pub fn test_reliability_map() {
+    // create a default Identity
+    let mut id: Identity<u8> = Identity {
+        channel_client: 4,
+        id_info: IdInfo {
+            did_key: [0; 32],
+            reliability: 1.0,
+            org_cert: organization_cert::OrgCert {
+                client_pubkey: String::from(""),
+                duration: 0,
+                org_pubkey: String::from(""),
+                signature: Vec::new()
+            }
+        },
+        reliability_map: HashMap::new()
+    };
+
+    id.update_reliability(vec![(String::from("a"), 0.5)]);
+    let a_score = calculate_score(id.reliability_map.get("a").unwrap());
+    assert_eq!(a_score, 0.5);
+
+    id.update_reliability(vec![(String::from("a"), 1.0)]);
+    let a_score = calculate_score(id.reliability_map.get("a").unwrap());
+    assert_eq!(a_score, 0.75);
+}
