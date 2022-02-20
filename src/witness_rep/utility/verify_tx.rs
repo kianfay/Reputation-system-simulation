@@ -6,11 +6,9 @@ use trust_score_generator::trust_score_generators::{
     data_types::{
         messages::{
             tx_messages as message,
-            contract::{Contract},
             signatures::{
-                witness_sig, transacting_sig, organization_cert
+                witness_sig, transacting_sig
             },
-            tx_messages::WitnessClients
         }
     },
 };
@@ -34,8 +32,20 @@ pub enum PublickeyOwner {
     Witness(String)
 }
 
+pub enum WhichBranch {
+    /// Verifies a specific branch
+    OneBranch(usize),
+    /// Verifies all branches including and after a specific branch
+    FromBranch(usize)
+}
+
 // returns whether the transaction msgs were valid, the messages, and the channel pks which signed the msgs
-pub async fn verify_txs(node_url: &str, ann_msg: String, seed: &str) -> Result<(bool, Vec<String>, Vec<String>)> {
+pub async fn verify_txs(
+    node_url: &str, 
+    ann_msg: String, 
+    seed: &str,
+    branches: WhichBranch
+) -> Result<(bool, Vec<String>, Vec<String>)> {
     
     // build another client to read the tangle with (the seed must be the same as 
     // one of the subscribers in the channel, which is why the author's seed is needed)
@@ -48,8 +58,21 @@ pub async fn verify_txs(node_url: &str, ann_msg: String, seed: &str) -> Result<(
 
     // fetch messages from address, and extract their payloads
     let retrieved = reader.fetch_next_msgs().await?;
-    //println!("\nAuthor found {} messages", retrieved.len());
-    let msgs = extract_msgs::extract_msg(retrieved);
+    let branches_msgs = extract_msgs::extract_msg(retrieved, 0);
+    let msgs = match branches {
+        // fetches the messages from one branch
+        WhichBranch::OneBranch(b) => branches_msgs[b].clone(),
+        // fetches the messages from multiple branches and flattens
+        WhichBranch::FromBranch(b) => {
+            let msgs: Vec<(String, String)> = branches_msgs.into_iter()
+                .enumerate()
+                .skip_while(|(i,_)| *i < b)
+                .map(|(_,x)| x)
+                .flatten()
+                .collect();
+            msgs
+        }
+    };
 
     let only_msgs = msgs.iter().map(|(msg, _)| msg.clone()).collect();
     let only_pks = msgs.iter().map(|(_, pk)| pk.clone()).collect();

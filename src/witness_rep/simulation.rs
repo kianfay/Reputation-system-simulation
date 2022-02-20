@@ -168,7 +168,8 @@ pub async fn simulation(
     }
 
     // verify the transaction
-    let (verified, msgs, pks) = verify_tx::verify_txs(node_url, ann_link_string, seed).await?;
+    let branches = verify_tx::WhichBranch::FromBranch(0);
+    let (verified, msgs, pks) = verify_tx::verify_txs(node_url, ann_link_string, seed, branches).await?;
 
     if !verified {
         panic!("One of the messages could not be verified");
