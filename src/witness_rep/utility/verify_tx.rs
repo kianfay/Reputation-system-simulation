@@ -1,5 +1,5 @@
 use crate::witness_rep::{
-    utility::extract_msgs
+    utility::{extract_msgs}
 };
 
 use trust_score_generator::trust_score_generators::{
@@ -14,17 +14,13 @@ use trust_score_generator::trust_score_generators::{
 };
 
 use iota_streams::{
-    app::transport::tangle::{client::Client, },
-    app_channels::api::tangle::{
-        Address, Subscriber
-    },
+    app_channels::api::tangle::UnwrappedMessage,
     core::{println, Result},
 };
 use identity::{
     crypto::{Ed25519, Verify},
     did::MethodData,
 };
-use core::str::FromStr;
 
 #[derive(Clone,PartialEq,Debug)]
 pub enum PublickeyOwner {
@@ -39,26 +35,14 @@ pub enum WhichBranch {
     FromBranch(usize)
 }
 
-// returns whether the transaction msgs were valid, the messages, and the channel pks which signed the msgs
+/// Returns whether the transaction msgs were valid, the messages, and the channel pks which signed the msgs
 pub async fn verify_txs(
-    node_url: &str, 
-    ann_msg: String, 
-    seed: &str,
+    msgs: Vec<UnwrappedMessage>,
     branches: WhichBranch
 ) -> Result<(bool, Vec<String>, Vec<String>)> {
     
-    // build another client to read the tangle with (the seed must be the same as 
-    // one of the subscribers in the channel, which is why the author's seed is needed)
-    let client = Client::new_from_url(node_url);
-    let mut reader = Subscriber::new(seed, client.clone());
 
-    // process the address string
-    let ann_address = Address::from_str(&ann_msg)?;
-    reader.receive_announcement(&ann_address).await?;
-
-    // fetch messages from address, and extract their payloads
-    let retrieved = reader.fetch_next_msgs().await?;
-    let branches_msgs = extract_msgs::extract_msg(retrieved, 0);
+    let branches_msgs = extract_msgs::extract_msg(msgs, 0);
     let msgs = match branches {
         // fetches the messages from one branch
         WhichBranch::OneBranch(b) => branches_msgs[b].clone(),
@@ -76,7 +60,6 @@ pub async fn verify_txs(
 
     let only_msgs = msgs.iter().map(|(msg, _)| msg.clone()).collect();
     let only_pks = msgs.iter().map(|(_, pk)| pk.clone()).collect();
-    //println!("{:?}", msgs);
 
     // parse the string into the TransactionMsg/WitnessStatement/CompensationMsg format and check if valid
     let mut valid_pks: Vec<PublickeyOwner> = Vec::new();
@@ -104,8 +87,8 @@ pub async fn verify_txs(
     return Ok((true, only_msgs, only_pks));
 }
 
-// Accepts a tuple of a message content and the sender's channel public key.
-// If it is a valid TransactionMessage, it will return true and a valid channel public keys and it's ownership
+/// Accepts a tuple of a message content and the sender's channel public key.
+/// If it is a valid TransactionMessage, it will return true and a valid channel public keys and it's ownership
 pub fn verify_msg( (tx_msg,channel_pk) : (message::Message, &String), mut valid_pks: Vec<PublickeyOwner>) -> Result<(bool, Option<Vec<PublickeyOwner>>)> {
     //println!("here");
     match tx_msg {
@@ -184,8 +167,8 @@ pub fn get_sigs(
     };
 }
 
-// returns a bool indicating if valid, and a string of the channel pubkey of this sub,
-// and the sig bytes
+/// Returns a bool indicating if valid, and a string of the channel pubkey of this sub,
+/// and the sig bytes
 pub fn verify_witness_sig(
     sig: witness_sig::WitnessSig
 ) -> Result<(bool, String, Vec<u8>)>{

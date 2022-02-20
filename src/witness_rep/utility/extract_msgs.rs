@@ -14,7 +14,7 @@ pub fn extract_msg(
     let mut messages: Vec<Vec<(String, String)>> = Vec::new();
     let mut current_branch = 0;
 
-    println!("Length: {}", retrieved_msgs.len());
+    //println!("Length: {}", retrieved_msgs.len());
     retrieved_msgs
         .iter()
         .for_each(|msg| {
@@ -27,7 +27,7 @@ pub fn extract_msg(
                     public_payload,
                     masked_payload: _,
                 } => {
-                    if current_branch > start_branch{
+                    if current_branch >= start_branch{
                         let pay = String::from_utf8(public_payload.0.to_vec()).unwrap();
                         let pubk = MethodData::new_multibase(pk);
                         if let MethodData::PublicKeyMultibase(mbpub) = pubk {
@@ -39,8 +39,8 @@ pub fn extract_msg(
                 },
                 MessageContent::Keyload  => {
                     // create a new vector for each keyload
-                    if current_branch > start_branch{
-                        let new_vec: Vec<(String, String)> = Vec::new();
+                    if current_branch >= start_branch{
+                        let new_vec: Vec<(String, String)> = Vec::from([]);
                         messages.push(new_vec);
                     }
                     current_branch += 1;

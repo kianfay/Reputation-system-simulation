@@ -5,7 +5,12 @@ use crate::witness_rep::{
         transaction::{transact, LazyMethod},
         participant::{ParticipantIdentity, IdInfo, ReliabilityMap}
     },
-    utility::verify_tx,
+    utility::{verify_tx, read_msgs, extract_msgs},
+};
+
+use trust_score_generator::trust_score_generators::{
+   trivial_tsg::tsg_organization,
+   utility::parse_messages
 };
 
 use iota_streams::{
@@ -26,6 +31,7 @@ use std::collections::HashSet;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::iter::FromIterator;
+use std::fs;
 
 pub const ALPH9: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ9";
 pub const DEFAULT_DURATION: u32 = 60*60*24*365; // 1 year
@@ -135,29 +141,31 @@ pub async fn simulation(
     //--------------------------------------------------------------
 
     // author creates the channel 
+    println!("Creating the channel:");
     let announcement_link = on_a.send_announce().await?;
     let ann_link_string = announcement_link.to_string();
     println!(
-        "Announcement Link: {}\nTangle Index: {:#}\n",
+        "-- Announcement Link: {} Tangle Index: {:#}\n",
         ann_link_string, announcement_link.to_msg_index()
     );
 
     // generate the lazy methods (currenlty the first half of the runs are 
     // 'constant true' and the second half are 'random')
+    println!("Generating lazy methods:");
     let lazy_methods: Vec<LazyMethod> = (0..=runs)
         .map(|x| {
-            if x >= runs/2 {
+            if x as f32 >= (runs as f32)/2.0 {
                 LazyMethod::Constant(true)
             } else {
                 LazyMethod::Random
             }
         }).collect::<Vec<LazyMethod>>()
         .try_into().expect("wrong size iterator");
-    println!("Lazy methods per run{:?}", lazy_methods);
+    println!("-- Lazy methods to be used: {:?}\n", lazy_methods);
 
     for i in 0..runs {
+        // run the iteration
         simulation_iteration(
-            node_url, 
             on_a,
             participants,
             average_proximity,
@@ -165,22 +173,41 @@ pub async fn simulation(
             lazy_methods[i].clone(),
             announcement_link
         ).await?;
+
+        // participants update their reliability scores of each other
+        let channel_msgs = read_msgs::read_msgs(node_url, &ann_link_string, seed).await?;
+        let branch_msgs = extract_msgs::extract_msg(channel_msgs, i);
+        let parsed_msgs = parse_messages::parse_messages(&branch_msgs[0])?;
+        for part in participants.into_iter() {
+            let (tn_verdicts, wn_verdicts) = tsg_organization(
+                parsed_msgs.clone(),
+                part.id_info.org_cert.org_pubkey.clone(),
+                0.5
+            );
+            println!("tn_verdicts: {:?}", tn_verdicts);
+            println!("wn_verdicts: {:?}\n", wn_verdicts);
+        }
     }
 
     // verify the transaction
     let branches = verify_tx::WhichBranch::FromBranch(0);
-    let (verified, msgs, pks) = verify_tx::verify_txs(node_url, ann_link_string, seed, branches).await?;
+    let channel_msgs = read_msgs::read_msgs(node_url, &ann_link_string, seed).await?;
+    let (verified, msgs, pks) = verify_tx::verify_txs(channel_msgs, branches).await?;
 
     if !verified {
         panic!("One of the messages could not be verified");
     }
 
     // for each message
+    let mut output: String = String::new();
     for i in 0..msgs.len() {
         // print the message and then the id_info of the sender
-        print!("Message {:?}", msgs[i]);
-        println!("Channel pubkey: {:?}", pks[i]);
+        let msg = format!("Message {:?}\n", msgs[i]);
+        let pk = format!("Channel pubkey: {:?}\n\n", pks[i]);
+        output.push_str(&msg);
+        output.push_str(&pk);
     }
+    fs::write("output.txt", output).expect("Unable to write file");
     
     return Ok(());
 }
@@ -188,7 +215,6 @@ pub async fn simulation(
 
 // Runs a single iteration of a simualtion
 pub async fn simulation_iteration(
-    node_url: &str,
     mut on_a: &mut Author<Tangle>,
     mut participants: &mut Vec<ParticipantIdentity>,
     average_proximity: f32,
@@ -207,7 +233,9 @@ pub async fn simulation_iteration(
     // GENERATE CONTRACT
     //--------------------------------------------------------------
 
+    println!("Generating contract:");
     let contract = generate_contract::generate_contract(&mut transacting_clients)?;
+    println!("-- Contract generated\n");
 
     //--------------------------------------------------------------
     // PERFORM THE TRANSACTION WITH CONTRACT
@@ -260,17 +288,19 @@ pub fn generate_trans_and_witnesses(
     // witnesses from the list for transacting nodes of indices larger than 0
     let tn_witnesses_lists: &mut Vec<Vec<usize>> = &mut Vec::new();
 
+    println!("Selecting participants to be transacting nodes and witnesses:");
     for i in 0..transacting_clients_1.len(){
-        println!("getting {}th witnesses", i);
+        println!("-- TN {} is finding witnesses:", i);
         let mut tn_witnesses: Vec<usize> = Vec::new();
         for j in 0..participants.len(){
             let rand: f32 = rand::thread_rng().gen();
-            println!("Trying participant {}. Rand={}", j, rand);
+            println!("---- Trying participant {}. Rand={}", j, rand);
             if average_proximity > rand {
                 tn_witnesses.push(j);
+                println!("------ Participant {} added", j);
             }
         }
-        println!("Found witnesses: {:?}", tn_witnesses);
+        println!("---- Found witnesses at indices: {:?}\n", tn_witnesses);
         tn_witnesses_lists.push(tn_witnesses);
     }
 
