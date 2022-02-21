@@ -2,7 +2,7 @@ use crate::witness_rep::{
     transaction::{
         generate_sigs, 
         participant::{
-            ParticipantIdentity, IdInfo
+            ParticipantIdentity, OrganizationIdentity, IdInfo, get_public_keys
         }
     },
 };
@@ -35,6 +35,7 @@ use identity::{
     crypto::KeyPair
 };
 use rand::Rng;
+use core::str::FromStr;
 
 #[derive(Clone, Debug)]
 pub enum LazyMethod {
@@ -47,18 +48,14 @@ pub enum LazyMethod {
 pub fn extract_from_id(
     id: &mut ParticipantIdentity
 ) -> Result<(&mut Subscriber<Client>, KeyPair, f32, organization_cert::OrgCert)> {
-    match id {
-        ParticipantIdentity { 
-            channel_client,
-            id_info: IdInfo { 
-                did_key,
-                reliability,
-                org_cert
-            },
-            reliability_map: _
+    match &id.id_info {
+        IdInfo { 
+            did_key,
+            reliability,
+            org_cert
         } => {
             let did_keypair = KeyPair::try_from_ed25519_bytes(did_key)?;
-            return Ok((channel_client, did_keypair,reliability.clone(), org_cert.clone()));
+            return Ok((&mut id.channel_client, did_keypair,reliability.clone(), org_cert.clone()));
         }
     }
 }
@@ -118,7 +115,7 @@ pub fn lazy_outcome(lazy_method: &LazyMethod) -> bool {
         LazyMethod::Constant(output) => output.clone(),
         LazyMethod::Random => {
             let rand: f32 = rand::thread_rng().gen();
-            println!("Trying lazy outcome. Rand={}", rand);
+            println!("-- Trying lazy outcome. Rand={}", rand);
             if rand > 0.5 {
                 true
             } else {
@@ -133,11 +130,12 @@ pub async fn transact(
     contract: Contract,
     transacting_ids: &mut Vec<ParticipantIdentity>,
     witness_ids: &mut Vec<ParticipantIdentity>,
-    organization_client: &mut Author<Client>,
-    announcement_link: TangleAddress,
+    organization_id: &mut OrganizationIdentity,
     lazy_method: LazyMethod
 ) -> Result<()> {
     const DEFAULT_TIMEOUT : u32 = 60*2; // 2 mins
+    let ann_str = organization_id.ann_msg.as_ref().unwrap();
+    let announcement_link = Address::from_str(ann_str)?;
 
     //--------------------------------------------------------------
     //--------------------------------------------------------------
@@ -145,6 +143,20 @@ pub async fn transact(
     //--------------------------------------------------------------
     let (mut transacting_clients, transacting_did_kp, transacting_reliablity, transacting_org_certs) = extract_from_ids(transacting_ids)?;
     let (mut witness_clients, witness_did_kp, witness_reliability, witness_org_certs) = extract_from_ids(witness_ids)?;
+
+    //--------------------------------------------------------------
+    // ORGANIZATION CHECKS THE RELIABILITIES OF THE PARTICIPANTS
+    //--------------------------------------------------------------
+    
+    // get the public keys of all the participants
+    let mut tn_pks = get_public_keys(&transacting_org_certs);
+    let mut wn_pks = get_public_keys(&witness_org_certs);
+    let mut participant_pks = Vec::new();
+    participant_pks.append(&mut tn_pks); participant_pks.append(&mut wn_pks);
+
+    if !organization_id.identity.check_avg_participants(&participant_pks){
+        panic!("The average reliability of the participants does not satisfy the organizations threshold")
+    }
 
 
     //--------------------------------------------------------------
@@ -159,7 +171,7 @@ pub async fn transact(
     for i in 0..transacting_clients.len() {
         transacting_clients[i].receive_announcement(&ann_address).await?;
         let subscribe_msg = transacting_clients[i].send_subscribe(&ann_address).await?;
-        let sub_result = organization_client.receive_subscribe(&subscribe_msg).await;
+        let sub_result = organization_id.identity.channel_client.receive_subscribe(&subscribe_msg).await;
 
         // either the subscribe works and the program continues, or it doesnt because
         // the author already has the tn as a subscriber and the program continues
@@ -171,7 +183,7 @@ pub async fn transact(
     for i in 0..witness_clients.len() {
         witness_clients[i].receive_announcement(&ann_address).await?;
         let subscribe_msg = witness_clients[i].send_subscribe(&ann_address).await?;
-        let sub_result = organization_client.receive_subscribe(&subscribe_msg).await;
+        let sub_result = organization_id.identity.channel_client.receive_subscribe(&subscribe_msg).await;
 
         match sub_result {
             Ok(()) => {println!("-- Witness {} is now subscribed", i);},
@@ -182,7 +194,7 @@ pub async fn transact(
 
     println!("Organization sends anoucement message to these clients:");
     let (keyload_a_link, _seq_a_link) =
-    organization_client.send_keyload_for_everyone(&announcement_link).await?;
+    organization_id.identity.channel_client.send_keyload_for_everyone(&announcement_link).await?;
     println!("-- Keyload sent\n");
 
     //--------------------------------------------------------------

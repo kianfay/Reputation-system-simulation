@@ -1,3 +1,5 @@
+use crate::witness_rep::utility::verify_tx::WhichBranch;
+
 use iota_streams::app_channels::api::tangle::{
     MessageContent, UnwrappedMessage
 };
@@ -5,14 +7,14 @@ use identity::{
     did::MethodData
 };
 
+
 // Ectracts all message payloads and pubkeys from each branch. start_branch
 // starts at 0.
 pub fn extract_msg(
     retrieved_msgs: Vec<UnwrappedMessage>,
-    start_branch: usize
+    branches: WhichBranch
 ) -> Vec<Vec<(String, String)>> {
     let mut messages: Vec<Vec<(String, String)>> = Vec::new();
-    let mut current_branch = 0;
 
     //println!("Length: {}", retrieved_msgs.len());
     retrieved_msgs
@@ -27,23 +29,18 @@ pub fn extract_msg(
                     public_payload,
                     masked_payload: _,
                 } => {
-                    if current_branch >= start_branch{
-                        let pay = String::from_utf8(public_payload.0.to_vec()).unwrap();
-                        let pubk = MethodData::new_multibase(pk);
-                        if let MethodData::PublicKeyMultibase(mbpub) = pubk {
-                            messages.last_mut().unwrap().push((pay, mbpub));
-                        } else {
-                            panic!("Failed to decode public key")
-                        }
+                    let pay = String::from_utf8(public_payload.0.to_vec()).unwrap();
+                    let pubk = MethodData::new_multibase(pk);
+                    if let MethodData::PublicKeyMultibase(mbpub) = pubk {
+                        messages.last_mut().unwrap().push((pay, mbpub));
+                    } else {
+                        panic!("Failed to decode public key")
                     }
                 },
                 MessageContent::Keyload  => {
                     // create a new vector for each keyload
-                    if current_branch >= start_branch{
-                        let new_vec: Vec<(String, String)> = Vec::from([]);
-                        messages.push(new_vec);
-                    }
-                    current_branch += 1;
+                    let new_vec: Vec<(String, String)> = Vec::from([]);
+                    messages.push(new_vec);
                 }
                 _ => {
                     panic!("Simulation only built to handle signed and keyload messages");
@@ -51,5 +48,13 @@ pub fn extract_msg(
             }
         });
     
-    return messages;
+    return match branches {
+        WhichBranch::OneBranch(b)  => vec![Vec::from(messages[b].clone())],
+        WhichBranch::FromBranch(b) => messages.into_iter()
+                                        .enumerate()
+                                        .filter(|(i,_)| *i >= b)
+                                        .map(|(_,br)| br)
+                                        .collect(),
+        WhichBranch::LastBranch  => vec![Vec::from(messages[messages.len()-1].clone())],
+    };
 }

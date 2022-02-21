@@ -32,7 +32,9 @@ pub enum WhichBranch {
     /// Verifies a specific branch
     OneBranch(usize),
     /// Verifies all branches including and after a specific branch
-    FromBranch(usize)
+    FromBranch(usize),
+    /// Verifies only the final branch
+    LastBranch
 }
 
 /// Returns whether the transaction msgs were valid, the messages, and the channel pks which signed the msgs
@@ -41,22 +43,10 @@ pub async fn verify_txs(
     branches: WhichBranch
 ) -> Result<(bool, Vec<String>, Vec<String>)> {
     
-
-    let branches_msgs = extract_msgs::extract_msg(msgs, 0);
-    let msgs = match branches {
-        // fetches the messages from one branch
-        WhichBranch::OneBranch(b) => branches_msgs[b].clone(),
-        // fetches the messages from multiple branches and flattens
-        WhichBranch::FromBranch(b) => {
-            let msgs: Vec<(String, String)> = branches_msgs.into_iter()
-                .enumerate()
-                .skip_while(|(i,_)| *i < b)
-                .map(|(_,x)| x)
-                .flatten()
-                .collect();
-            msgs
-        }
-    };
+    let branches_msgs = extract_msgs::extract_msg(msgs, branches);
+    let msgs: Vec<(String, String)> = branches_msgs.into_iter()
+        .flatten()
+        .collect();
 
     let only_msgs = msgs.iter().map(|(msg, _)| msg.clone()).collect();
     let only_pks = msgs.iter().map(|(_, pk)| pk.clone()).collect();

@@ -20,16 +20,8 @@ pub fn generate_contract(transacting_ids: &mut Vec<ParticipantIdentity>) -> Resu
     // get the did pubkeys from the ids
     let did_pubkeys_res : Result<Vec<String>> = transacting_ids
         .iter()
-        .map(|ParticipantIdentity {
-            channel_client: _,
-            id_info: IdInfo{
-                did_key,
-                reliability: _,
-                org_cert: _
-            },
-            reliability_map: _
-        }| {
-            let kp = KeyPair::try_from_ed25519_bytes(did_key)?;
+        .map(|p| {
+            let kp = KeyPair::try_from_ed25519_bytes(&p.id_info.did_key)?;
             let multibase_pub = MethodData::new_multibase(kp.public());
 
             if let MethodData::PublicKeyMultibase(mbpub) = multibase_pub {
