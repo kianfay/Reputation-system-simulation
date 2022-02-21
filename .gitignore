@@ -11,4 +11,4 @@ Cargo.lock
 
 simulation_results/
 
-output.txt
+output*

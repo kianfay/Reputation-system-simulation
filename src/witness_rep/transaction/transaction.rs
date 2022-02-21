@@ -160,8 +160,7 @@ pub async fn transact(
 
 
     //--------------------------------------------------------------
-    // ORGANIZATION SENDS ANOUNCEMENT AND SUBS PROCESS IT
-    // (IMITATING A KEYLOAD IN A MULTI-BRANCH/MULTI-PUB CHANNEL)
+    // ORGANIZATION SENDS KEYLOAD
     //--------------------------------------------------------------
 
 
@@ -192,7 +191,7 @@ pub async fn transact(
     }
     println!("");
 
-    println!("Organization sends anoucement message to these clients:");
+    println!("Organization sends keyload message to these clients:");
     let (keyload_a_link, _seq_a_link) =
     organization_id.identity.channel_client.send_keyload_for_everyone(&announcement_link).await?;
     println!("-- Keyload sent\n");

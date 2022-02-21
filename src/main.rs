@@ -46,7 +46,7 @@ async fn main() -> Result<()> {
         num_participants: 4,
         average_proximity: 1.0,
         witness_floor: 2,
-        runs: 1,
+        runs: 2,
         reliability: vec![0.75; 4],
         reliability_threshold: vec![0.5; 4],
         default_reliability: vec![0.5; 4],
@@ -54,11 +54,11 @@ async fn main() -> Result<()> {
     };
     witness_rep::simulation::simulation(sc).await?;
 
-/*     let ann = "e70efde01ec98c7d7cd3ad213ecdeb5fed4c148fb202d8ec425cd70dbca86b550000000000000000:c633f457ddb443d5f098cf68";
+/*     let ann = "10a54dd01a48799c8def58b315a85b2aa62ccd3ca443c75350234054d11230160000000000000000:d5227ec97cc8597a471b9478";
     let seed = "Participant 0";
-    let channel_msgs = read_msgs::read_msgs(url, ann, seed).await?;
-    let branch_msgs = extract_msgs::extract_msg(channel_msgs, 0); */
-
+    let channel_msgs = witness_rep::utility::read_msgs::read_msgs(url, ann, seed).await?;
+    let branch_msgs = witness_rep::utility::extract_msgs::extract_msg(channel_msgs, witness_rep::utility::verify_tx::WhichBranch::LastBranch);
+    println!("{:?}", branch_msgs[0]); */
 
 /* 
     println!("\n---------------------------------------");
