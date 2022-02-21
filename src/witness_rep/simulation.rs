@@ -16,7 +16,7 @@ use trust_score_generator::trust_score_generators::{
 };
 
 use iota_streams::{
-    app::transport::tangle::{TangleAddress, client::Client},
+    app::transport::tangle::client::Client,
     app_channels::api::tangle::{
         Author, ChannelType, Subscriber
     },
@@ -221,6 +221,16 @@ pub async fn simulation(
             &mut rand_gen
         ).await?;
     }
+
+    // write all of the reliability maps to file, next to their did public key
+    let mut output: String = String::new();
+    for part in participants {
+        let pk = format!("{:?}\n", part.id_info.org_cert.client_pubkey);
+        let map = format!("{:?}\n\n", part.reliability_map);
+        output.push_str(&pk);
+        output.push_str(&map);
+    }
+    fs::write("reliability_maps.txt", output).expect("Unable to write file");
     
     return Ok(());
 }
@@ -322,6 +332,11 @@ pub async fn simulation_iteration(
             part.id_info.org_cert.org_pubkey.clone(),
             0.5
         );
+
+        // add the new verdicts to the reliability map
+        part.update_reliability(tn_verdicts.clone());
+        part.update_reliability(wn_verdicts.clone());
+
         println!("tn_verdicts: {:?}", tn_verdicts);
         println!("wn_verdicts: {:?}\n", wn_verdicts);
     }

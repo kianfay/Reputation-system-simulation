@@ -3,7 +3,10 @@ use crate::witness_rep::{
 };
 
 use trust_score_generator::trust_score_generators::{
-    data_types::messages::signatures::organization_cert,
+    data_types::{
+        messages::signatures::organization_cert,
+        verdict::TxVerdict
+    }
 };
 
 use iota_streams::{
@@ -39,14 +42,14 @@ pub struct Identity<C> {
 }
 
 impl<C> Identity<C> {
-    pub fn update_reliability(&mut self, new_estimates: Vec<(String, f32)>){
-        for (pubkey, estimate) in new_estimates {
+    pub fn update_reliability(&mut self, new_estimates: TxVerdict){
+        for estimate in new_estimates.verdicts {
             // inserts the default value if the entry does not yet exist
-            self.add_if_not_already(&pubkey);
+            self.add_if_not_already(&estimate.did_public_key);
 
             // remove the old mapping, and then update and re-insert
-            let (score, estimate_count) = self.reliability_map.remove(&pubkey).unwrap();
-            self.reliability_map.insert(pubkey, (score + estimate, estimate_count + 1));
+            let (score, estimate_count) = self.reliability_map.remove(&estimate.did_public_key).unwrap();
+            self.reliability_map.insert(estimate.did_public_key, (score + estimate.estimated_reliablility, estimate_count + 1));
         }        
     }
 
