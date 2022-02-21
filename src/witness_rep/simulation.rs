@@ -71,6 +71,8 @@ pub async fn simulation(
         panic!("Number of elements in 'organizations' parameter must equal the num_participants!");
     }
 
+    let mut rand_gen = rand::thread_rng();
+
 
     //--------------------------------------------------------------
     //--------------------------------------------------------------
@@ -100,7 +102,7 @@ pub async fn simulation(
         .map(|_| {
             ALPH9
                 .chars()
-                .nth(rand::thread_rng().gen_range(0, 27))
+                .nth(rand_gen.gen_range(0, 27))
                 .unwrap()
         })
         .collect::<String>();
@@ -194,12 +196,13 @@ pub async fn simulation(
     // generate the lazy methods (currenlty the first half of the runs are 
     // 'constant true' and the second half are 'random')
     println!("Generating lazy methods:");
-    let lazy_methods: Vec<LazyMethod> = (0..=sc.runs)
-        .map(|x| {
-            if x as f32 >= (sc.runs as f32)/2.0 {
-                LazyMethod::Constant(true)
-            } else {
-                LazyMethod::Random
+    let lazy_methods: Vec<LazyMethod> = (0..sc.runs)
+        .map(|_| {
+            match rand_gen.gen_range(0,3) {
+                0 => LazyMethod::Constant(true),
+                1 => LazyMethod::Constant(false),
+                2 => LazyMethod::Random,
+                _ => panic!("Random number generator failure")
             }
         }).collect::<Vec<LazyMethod>>()
         .try_into().expect("wrong size iterator");
@@ -214,7 +217,8 @@ pub async fn simulation(
             sc.witness_floor,
             lazy_methods[i].clone(),
             &sc.node_url,
-            &format!("output_{}", i)
+            &format!("output_{}", i),
+            &mut rand_gen
         ).await?;
     }
     
@@ -230,14 +234,18 @@ pub async fn simulation_iteration(
     witness_floor: usize,
     lazy_method: LazyMethod,
     node_url: &str,
-    output_name: &str
+    output_name: &str,
+    rand_gen: &mut rand::prelude::ThreadRng
 ) -> Result<()> {
 
     //--------------------------------------------------------------
     // GENERATE GROUPS OF TRANSACATING NODES AND WITNESSES
     //--------------------------------------------------------------
 
-    let (mut transacting_clients, mut witness_clients) = generate_trans_and_witnesses(&mut participants, average_proximity, witness_floor)?;
+    let (mut transacting_clients, mut witness_clients) = generate_trans_and_witnesses(&mut participants,
+        average_proximity,
+        witness_floor,
+        rand_gen)?;
 
     //--------------------------------------------------------------
     // GET THE ORGANIZATION OF THE INITIATING TRANSACTING NODE [0]
@@ -280,7 +288,7 @@ pub async fn simulation_iteration(
     // verify the transaction
     let ann_msg = &organizations[org_index].ann_msg.as_ref().unwrap();
     let org_seed = &organizations[org_index].seed;
-    let branches = verify_tx::WhichBranch::FromBranch(0);
+    let branches = verify_tx::WhichBranch::LastBranch;
     let channel_msgs = read_msgs::read_msgs(node_url, ann_msg, org_seed).await?;
     let (verified, msgs, pks) = verify_tx::verify_txs(channel_msgs, branches).await?;
 
@@ -325,7 +333,8 @@ pub async fn simulation_iteration(
 pub fn generate_trans_and_witnesses(
     participants: &mut Vec<ParticipantIdentity>,
     average_proximity: f32,
-    witness_floor: usize
+    witness_floor: usize,
+    rand_gen: &mut rand::prelude::ThreadRng
 ) -> Result<(Vec<ParticipantIdentity>,Vec<ParticipantIdentity>)> {
 
     let mut transacting_clients: Vec<ParticipantIdentity> = Vec::new();
@@ -339,7 +348,7 @@ pub fn generate_trans_and_witnesses(
     // of the process
     let mut count = 0;
     loop {
-        if average_proximity > rand::thread_rng().gen() {
+        if average_proximity > rand_gen.gen() {
             transacting_clients.push(participants.remove(count % participants.len()));
             break;
         }
@@ -358,7 +367,7 @@ pub fn generate_trans_and_witnesses(
         let mut tn_witnesses: Vec<usize> = Vec::new();
 
         for j in 0..participants.len(){
-            let rand: f32 = rand::thread_rng().gen();
+            let rand: f32 = rand_gen.gen();
             println!("---- Trying participant {}. Rand={}. Avg proximity={}", j, rand, average_proximity);
             if average_proximity > rand {
                 println!("---- Checking participant {}'s reliability", j);
