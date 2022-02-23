@@ -89,10 +89,22 @@ impl<C> Identity<C> {
     // Because the default value in the reliability map is (0.0, 0), a div by zero
     // error must be avoided. Conveniently, (_, 0) means we should use the default value.
     pub fn calculate_score(&self, components: &ReliabilityComponents) -> f32 {
-        if(components.1 == 0){
+        if components.1 == 0{
             return self.default_reliability;
         }
         return components.0 / components.1 as f32;
+    }
+
+    pub fn get_reliability_scores_string(&self) -> String {
+        let mut str = String::new();
+        self.reliability_map
+            .iter()
+            .for_each(|(p,r)| {
+                let score = self.calculate_score(r);
+                let next = format!("{}: {}\n", p, score);
+                str.push_str(&next)
+            });
+        return str;
     }
 
 }

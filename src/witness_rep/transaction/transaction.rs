@@ -282,7 +282,7 @@ pub async fn transact(
         wit_node_sigs: ArrayOfWnSignitures(witness_sigs.clone()),
         tx_client_sigs: ArrayOfTxSignitures(transacting_sigs.clone()),
     };
-    println!("-- TransactionMessage generated:\n");
+    println!("-- TransactionMessage generated");
     
     //--------------------------------------------------------------
     // INITIATING TN SENDS THE TRANSACTION MESSAGE
@@ -293,7 +293,7 @@ pub async fn transact(
     let tx_message = vec![
         tx_msg_str
     ];
-    println!("-- TransactionMessage serialized:\n");
+    println!("-- TransactionMessage serialized\n");
 
 
     // TN_A sends the transaction
@@ -378,6 +378,7 @@ pub async fn transact(
         println!("-- Witness {} sent statement: ID: {}, tangle index: {:#}", i, msg_link, msg_link.to_msg_index());
         prev_msg_link = msg_link;
     }
+    println!("");
 
     //--------------------------------------------------------------
     // THE PARTICIPANTS READ THE STATEMENTS AND DECIDE TO COMPENSATE

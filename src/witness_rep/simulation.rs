@@ -209,6 +209,7 @@ pub async fn simulation(
     println!("-- Lazy methods to be used: {:?}\n", lazy_methods);
 
     for i in 0..sc.runs {
+        println!("\n\n\n---------------------STARTING RUN {}---------------------", i);
         // run the iteration
         simulation_iteration(
             organizations,
@@ -225,8 +226,8 @@ pub async fn simulation(
     // write all of the reliability maps to file, next to their did public key
     let mut output: String = String::new();
     for part in participants {
-        let pk = format!("{:?}\n", part.id_info.org_cert.client_pubkey);
-        let map = format!("{:?}\n\n", part.reliability_map);
+        let pk = format!("{}\n", part.id_info.org_cert.client_pubkey);
+        let map = format!("{}\n\n", part.get_reliability_scores_string());
         output.push_str(&pk);
         output.push_str(&map);
     }
@@ -264,6 +265,7 @@ pub async fn simulation_iteration(
     // get orgs' pubkey and find the org with that pubkey
     let init_tn_org_pk = &transacting_clients[0].id_info.org_cert.org_pubkey;
     let org_index = get_index_org_with_pubkey(&organizations, init_tn_org_pk);
+    println!("Run under organization {}\n", organizations[org_index].identity.id_info.org_cert.client_pubkey);
 
 
     //--------------------------------------------------------------
@@ -287,9 +289,8 @@ pub async fn simulation_iteration(
     ).await?;
 
     // put the particpants back into the original array
-    participants.append(&mut transacting_clients);
     participants.append(&mut witness_clients);
-
+    participants.append(&mut transacting_clients);
 
     //--------------------------------------------------------------
     // VERIFY THE TRANSACTION AND SAVE THE OUTPUT TO FILE
