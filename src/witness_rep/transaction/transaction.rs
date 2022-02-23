@@ -25,7 +25,7 @@ use trust_score_generator::trust_score_generators::{
 use iota_streams::{
     app::transport::tangle::{TangleAddress, client::Client},
     app_channels::api::tangle::{
-        Address, Author, Bytes, Subscriber
+        Address, Author, Bytes, Subscriber, ChannelType
     },
     core::{println, Result},
     app::message::HasLink
@@ -47,7 +47,7 @@ pub enum LazyMethod {
 
 pub fn extract_from_id(
     id: &mut ParticipantIdentity
-) -> Result<(&mut Subscriber<Client>, KeyPair, f32, organization_cert::OrgCert)> {
+) -> Result<(String, KeyPair, f32, organization_cert::OrgCert)> {
     match &id.id_info {
         IdInfo { 
             did_key,
@@ -55,15 +55,15 @@ pub fn extract_from_id(
             org_cert
         } => {
             let did_keypair = KeyPair::try_from_ed25519_bytes(did_key)?;
-            return Ok((&mut id.channel_client, did_keypair,reliability.clone(), org_cert.clone()));
+            return Ok((id.channel_client_seed.clone(), did_keypair,reliability.clone(), org_cert.clone()));
         }
     }
 }
 
 pub fn extract_from_ids(
     ids: &mut Vec<ParticipantIdentity>
-) -> Result<(Vec<&mut Subscriber<Client>>, Vec<KeyPair>, Vec<f32>, Vec<organization_cert::OrgCert>)> {
-    let mut subs: Vec<&mut Subscriber<Client>>  = Vec::new();
+) -> Result<(Vec<String>, Vec<KeyPair>, Vec<f32>, Vec<organization_cert::OrgCert>)> {
+    let mut subs: Vec<String>  = Vec::new();
     let mut kps : Vec<KeyPair>                  = Vec::new();
     let mut rels: Vec<f32>                      = Vec::new();
     let mut orgs: Vec<organization_cert::OrgCert>      = Vec::new();
@@ -78,7 +78,7 @@ pub fn extract_from_ids(
     return Ok((subs, kps,rels,orgs));
 }
 
-pub async fn sync_all(subs: &mut Vec<&mut Subscriber<Client>>) -> Result<()> {
+pub async fn sync_all(subs: &mut Vec<Subscriber<Client>>) -> Result<()> {
     for sub in subs {
         sub.sync_state().await?;
     }
@@ -131,7 +131,8 @@ pub async fn transact(
     transacting_ids: &mut Vec<ParticipantIdentity>,
     witness_ids: &mut Vec<ParticipantIdentity>,
     organization_id: &mut OrganizationIdentity,
-    lazy_method: LazyMethod
+    lazy_method: LazyMethod,
+    client: Client
 ) -> Result<()> {
     const DEFAULT_TIMEOUT : u32 = 60*2; // 2 mins
     let ann_str = organization_id.ann_msg.as_ref().unwrap();
@@ -141,8 +142,22 @@ pub async fn transact(
     //--------------------------------------------------------------
     // EXTRACT CLIENTS AND KEYPAIRS FROM IDENTITIES
     //--------------------------------------------------------------
-    let (mut transacting_clients, transacting_did_kp, transacting_reliablity, transacting_org_certs) = extract_from_ids(transacting_ids)?;
-    let (mut witness_clients, witness_did_kp, witness_reliability, witness_org_certs) = extract_from_ids(witness_ids)?;
+    let (transacting_clients_seeds, transacting_did_kp, transacting_reliablity, transacting_org_certs) = extract_from_ids(transacting_ids)?;
+    let (witness_clients_seeds, witness_did_kp, witness_reliability, witness_org_certs) = extract_from_ids(witness_ids)?;
+
+    let mut transacting_clients : Vec<Subscriber<Client>> = Vec::new();
+    let mut witness_clients     : Vec<Subscriber<Client>> = Vec::new();
+    let mut organization = Author::new(&organization_id.identity.channel_client_seed, ChannelType::MultiBranch, client.clone());
+
+    for i in 0..transacting_clients_seeds.len(){
+        let remade_client = Subscriber::new(&transacting_clients_seeds[i], client.clone());
+        transacting_clients.push(remade_client);
+    }
+
+    for i in 0..witness_clients_seeds.len(){
+        let remade_client = Subscriber::new(&witness_clients_seeds[i], client.clone());
+        witness_clients.push(remade_client);
+    }
 
     //--------------------------------------------------------------
     // ORGANIZATION CHECKS THE RELIABILITIES OF THE PARTICIPANTS
@@ -166,26 +181,28 @@ pub async fn transact(
 
     // participants process the channel announcement
     println!("Participants subscribe to channel if not already subscribed:");
+    let mut wn_sub_msgs: Vec<TangleAddress> = Vec::new();
+    let mut tn_sub_msgs: Vec<TangleAddress> = Vec::new();
     let ann_address = Address::try_from_bytes(&announcement_link.to_bytes())?;
     for i in 0..transacting_clients.len() {
         transacting_clients[i].receive_announcement(&ann_address).await?;
         let subscribe_msg = transacting_clients[i].send_subscribe(&ann_address).await?;
-        let sub_result = organization_id.identity.channel_client.receive_subscribe(&subscribe_msg).await;
+        let sub_result = organization.receive_subscribe(&subscribe_msg).await;
 
         // either the subscribe works and the program continues, or it doesnt because
         // the author already has the tn as a subscriber and the program continues
         match sub_result {
-            Ok(()) => {println!("-- Transacting node {} is now subscribed", i);},
+            Ok(()) => {println!("-- Transacting node {} is now subscribed", i);tn_sub_msgs.push(subscribe_msg)},
             Err(_) => {},
         };
     }
     for i in 0..witness_clients.len() {
         witness_clients[i].receive_announcement(&ann_address).await?;
         let subscribe_msg = witness_clients[i].send_subscribe(&ann_address).await?;
-        let sub_result = organization_id.identity.channel_client.receive_subscribe(&subscribe_msg).await;
+        let sub_result = organization.receive_subscribe(&subscribe_msg).await;
 
         match sub_result {
-            Ok(()) => {println!("-- Witness {} is now subscribed", i);},
+            Ok(()) => {println!("-- Witness {} is now subscribed", i);wn_sub_msgs.push(subscribe_msg)},
             Err(_) => {},
         };
     }
@@ -193,7 +210,7 @@ pub async fn transact(
 
     println!("Organization sends keyload message to these clients:");
     let (keyload_a_link, _seq_a_link) =
-    organization_id.identity.channel_client.send_keyload_for_everyone(&announcement_link).await?;
+    organization.send_keyload_for_everyone(&announcement_link).await?;
     println!("-- Keyload sent\n");
 
     //--------------------------------------------------------------
@@ -370,6 +387,7 @@ pub async fn transact(
         // WN sends their witness statement
         sync_all(&mut transacting_clients).await?;
         sync_all(&mut witness_clients).await?;
+        println!("here");
         let (msg_link, _) = witness_clients[i].send_signed_packet(
             &prev_msg_link,
             &Bytes(witness_message[0].as_bytes().to_vec()),
@@ -424,14 +442,18 @@ pub async fn transact(
     // THE PARTICIPANTS UNREGISTER SO THAT THEY CAN SUB TO OTHER CHANNELS
     //--------------------------------------------------------------
 
-    println!("Participants unregister from channel:");
+/*     println!("Participants unregister from channel:");
     for i in 0..transacting_clients.len() {
+        let unsub_addr = transacting_clients[i].send_unsubscribe(&tn_sub_msgs[i]).await?;
+        organization_id.identity.channel_client.receive_unsubscribe(&unsub_addr).await?;
         transacting_clients[i].unregister();
     }
     for i in 0..witness_clients.len() {
+        let unsub_addr = witness_clients[i].send_unsubscribe(&wn_sub_msgs[i]).await?;
+        organization_id.identity.channel_client.receive_unsubscribe(&unsub_addr).await?;
         witness_clients[i].unregister();
     }
-    println!("-- All participants unregistered");
+    println!("-- All participants unregistered"); */
     
     return Ok(());
 }

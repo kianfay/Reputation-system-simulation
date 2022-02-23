@@ -26,9 +26,9 @@ use std::collections::HashMap;
 // depending on the actual event), or to possibly collude or act with malice to 
 // either gain an advantage in monetary or trust score terms (or damage other 
 // participant).
-pub struct Identity<C> {
+pub struct Identity {
     /// The IOTA channels client
-    pub channel_client: C,
+    pub channel_client_seed: String,
     /// Information inherent to the participant outside of the simulation
     pub id_info: IdInfo,
     /// A Map from public keys to the perceived reliability of the associated participant
@@ -41,7 +41,7 @@ pub struct Identity<C> {
     pub default_reliability: f32
 }
 
-impl<C> Identity<C> {
+impl Identity {
     pub fn update_reliability(&mut self, new_estimates: TxVerdict){
         for estimate in new_estimates.verdicts {
             // inserts the default value if the entry does not yet exist
@@ -111,9 +111,9 @@ impl<C> Identity<C> {
 
 
 
-pub type ParticipantIdentity = Identity<Subscriber<Client>>;
+pub type ParticipantIdentity = Identity;
 pub struct OrganizationIdentity{
-    pub identity:  Identity<Author<Client>>,
+    pub identity:  Identity,
     pub ann_msg: Option<String>,
     pub seed: String
 }
@@ -163,8 +163,8 @@ pub fn get_index_org_with_pubkey(organizations: &Vec<OrganizationIdentity>, pk: 
 #[test]
 pub fn test_reliability_map() {
     // create a default Identity
-    let mut id: Identity<u8> = Identity {
-        channel_client: 4,
+    let mut id: Identity = Identity {
+        channel_client_seed: String::from("hey"),
         id_info: IdInfo {
             did_key: [0; 32],
             reliability: 1.0,

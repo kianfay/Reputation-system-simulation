@@ -112,8 +112,8 @@ pub async fn simulation(
         let pubkey =  generate_sigs::get_multibase(&repeat_kp);
         let reliability_map: ReliabilityMap = HashMap::new();
 
-        let org_id: Identity<Author<Client>> = Identity{
-            channel_client: on,
+        let org_id: Identity = Identity{
+            channel_client_seed: String::from(seed),
             id_info: IdInfo {
                 did_key: sec,
                 reliability: sc.reliability[i],
@@ -161,7 +161,7 @@ pub async fn simulation(
         let reliability_map: ReliabilityMap = HashMap::new();
 
         let id = ParticipantIdentity {
-            channel_client: tn,
+            channel_client_seed: name,
             id_info: IdInfo {
                 did_key: part_did_secret[i],
                 reliability: sc.reliability[i],
@@ -181,7 +181,11 @@ pub async fn simulation(
     // organizations (acting as authors) create the channels
     for i in 0..organizations.len(){
         println!("Creating the channel for oranization {}:", i);
-        let announcement_link = organizations[i].identity.channel_client.send_announce().await?;
+        let mut temp_org = Author::new(
+            &organizations[i].identity.channel_client_seed,
+            ChannelType::MultiBranch,
+            client.clone());
+        let announcement_link = temp_org.send_announce().await?;
         let ann_link_string = announcement_link.to_string();
         println!(
             "-- Announcement Link: {} Tangle Index: {:#}\n",
@@ -219,7 +223,8 @@ pub async fn simulation(
             lazy_methods[i].clone(),
             &sc.node_url,
             &format!("output_{}", i),
-            &mut rand_gen
+            &mut rand_gen,
+            client.clone()
         ).await?;
     }
 
@@ -246,7 +251,8 @@ pub async fn simulation_iteration(
     lazy_method: LazyMethod,
     node_url: &str,
     output_name: &str,
-    rand_gen: &mut rand::prelude::ThreadRng
+    rand_gen: &mut rand::prelude::ThreadRng,
+    client: Client
 ) -> Result<()> {
 
     //--------------------------------------------------------------
@@ -285,7 +291,8 @@ pub async fn simulation_iteration(
         &mut transacting_clients,
         &mut witness_clients,
         &mut organizations[org_index],
-        lazy_method
+        lazy_method,
+        client
     ).await?;
 
     // put the particpants back into the original array
