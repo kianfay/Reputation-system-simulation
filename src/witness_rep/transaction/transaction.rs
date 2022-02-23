@@ -181,8 +181,7 @@ pub async fn transact(
 
     // participants process the channel announcement
     println!("Participants subscribe to channel if not already subscribed:");
-    let mut wn_sub_msgs: Vec<TangleAddress> = Vec::new();
-    let mut tn_sub_msgs: Vec<TangleAddress> = Vec::new();
+    sync_all(&mut transacting_clients);
     let ann_address = Address::try_from_bytes(&announcement_link.to_bytes())?;
     for i in 0..transacting_clients.len() {
         transacting_clients[i].receive_announcement(&ann_address).await?;
