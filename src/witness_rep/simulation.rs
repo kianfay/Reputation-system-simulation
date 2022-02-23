@@ -284,7 +284,7 @@ pub async fn simulation_iteration(
     // PERFORM THE TRANSACTION WITH CONTRACT
     //--------------------------------------------------------------
 
-    transact(
+    let (tn_honesty, wn_honesty) = transact(
         contract,
         &mut transacting_clients,
         &mut witness_clients,
@@ -313,6 +313,8 @@ pub async fn simulation_iteration(
 
     // for each message
     let mut output: String = String::new();
+    let info = format!("TN honesty {:?}\nWN honesty: {:?}\n\n", tn_honesty, wn_honesty);
+    output.push_str(&info);
     for i in 0..msgs.len() {
         // print the message and then the id_info of the sender
         let msg = format!("Message {:?}\n", msgs[i]);
@@ -330,6 +332,7 @@ pub async fn simulation_iteration(
     // participants update their reliability scores of each other
     let channel_msgs = read_msgs::read_msgs(node_url, ann_msg, org_seed).await?;
     let branch_msgs = extract_msgs::extract_msg(channel_msgs, verify_tx::WhichBranch::LastBranch);
+    //println!("HHHHEERREEE: {:?}", branch_msgs);
     let parsed_msgs = parse_messages::parse_messages(&branch_msgs[0])?;
     for part in participants.into_iter() {
         let (tn_verdicts, wn_verdicts) = tsg_organization(

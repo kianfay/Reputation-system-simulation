@@ -132,7 +132,7 @@ pub async fn transact(
     witness_ids: &mut Vec<ParticipantIdentity>,
     organization_id: &mut OrganizationIdentity,
     lazy_method: LazyMethod
-) -> Result<()> {
+) -> Result<(Vec<bool>, Vec<bool>)> {
     const DEFAULT_TIMEOUT : u32 = 60*2; // 2 mins
     let ann_str = organization_id.ann_msg.as_ref().unwrap();
     let announcement_link = Address::from_str(ann_str)?;
@@ -436,5 +436,5 @@ pub async fn transact(
     }
     println!("-- All participants unregistered");
     
-    return Ok(());
+    return Ok((honest_tranascting_ids, honest_witness_ids));
 }

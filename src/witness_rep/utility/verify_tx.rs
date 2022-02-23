@@ -66,7 +66,7 @@ pub async fn verify_txs(
             (true, None)        => true,
             (false, _)          => false
         };
-        //println!("Valid pks: {:?}", valid_pks);
+        println!("Valid pks: {:?}", valid_pks);
 
         println!("Verified status of msg: {}", final_verify);
         if !final_verify {
@@ -80,7 +80,7 @@ pub async fn verify_txs(
 /// Accepts a tuple of a message content and the sender's channel public key.
 /// If it is a valid TransactionMessage, it will return true and a valid channel public keys and it's ownership
 pub fn verify_msg( (tx_msg,channel_pk) : (message::Message, &String), mut valid_pks: Vec<PublickeyOwner>) -> Result<(bool, Option<Vec<PublickeyOwner>>)> {
-    //println!("here");
+    println!("EEERRREEEHH: {:?}", tx_msg);
     match tx_msg {
         message::Message::TransactionMsg {
             contract, witnesses, wit_node_sigs, tx_client_sigs
@@ -133,7 +133,7 @@ pub fn verify_msg( (tx_msg,channel_pk) : (message::Message, &String), mut valid_
         } => {
             //println!("Inside here");
             let wrapped_channel_pk = PublickeyOwner::TransactingNode(channel_pk.clone());
-            //println!("{:?}", wrapped_channel_pk);
+            println!("CHANNEL_PK: {:?}", wrapped_channel_pk);
             if valid_pks.contains(&wrapped_channel_pk) {
                 return Ok((true, None));
             }

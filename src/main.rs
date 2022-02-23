@@ -9,11 +9,11 @@ async fn main() -> Result<()> {
     let sc = witness_rep::simulation::SimulationConfig {
         node_url: String::from(url),
         num_participants: 15,
-        average_proximity: 0.5,
+        average_proximity: 0.7,
         witness_floor: 2,
         runs: 10,
         reliability: vec![0.75, 0.5, 0.4, 0.7, 0.6, 0.8, 0.9, 0.7, 0.3, 0.6, 0.5, 0.7, 0.4, 0.5, 0.8],
-        reliability_threshold: vec![0.5; 15],
+        reliability_threshold: vec![0.1; 15],
         default_reliability: vec![0.5; 15],
         organizations: vec![0,0,1,1,2,2,1,1,0,1,0,2,2,1,0]
     };
