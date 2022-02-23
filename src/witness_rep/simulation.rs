@@ -114,6 +114,7 @@ pub async fn simulation(
 
         let org_id: Identity<Author<Client>> = Identity{
             channel_client: on,
+            seed: String::from(" "),
             id_info: IdInfo {
                 did_key: sec,
                 reliability: sc.reliability[i],
@@ -152,7 +153,7 @@ pub async fn simulation(
                                             .collect();
 
     // create channel subscriber instances
-    let participants: &mut Vec<ParticipantIdentity> = &mut Vec::new();
+    let mut participants: &mut Vec<ParticipantIdentity> = &mut Vec::new();
     for i in 0..sc.num_participants{
         let name = format!("Participant {}", i);
         let tn = Subscriber::new(&name, client.clone());
@@ -162,6 +163,7 @@ pub async fn simulation(
 
         let id = ParticipantIdentity {
             channel_client: tn,
+            seed: name,
             id_info: IdInfo {
                 did_key: part_did_secret[i],
                 reliability: sc.reliability[i],
@@ -221,6 +223,8 @@ pub async fn simulation(
             &format!("output_{}", i),
             &mut rand_gen
         ).await?;
+
+        participants = reset_clients(participants, client.clone())?;
     }
 
     // write all of the reliability maps to file, next to their did public key
@@ -419,4 +423,15 @@ pub fn generate_trans_and_witnesses(
     }
 
     return Ok((transacting_clients, witness_clients));
+}
+
+pub fn reset_clients(
+    participants: &mut Vec<ParticipantIdentity>,
+    client: Client
+) -> Result<&mut Vec<ParticipantIdentity>> {
+    for i in 0..participants.len(){
+        let new_client = Subscriber::new(&participants[i].seed, client.clone());
+        participants[i].channel_client = new_client;
+    }
+    return Ok(participants);
 }

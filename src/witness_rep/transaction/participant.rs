@@ -29,6 +29,8 @@ use std::collections::HashMap;
 pub struct Identity<C> {
     /// The IOTA channels client
     pub channel_client: C,
+    /// The client seed (a workaround field)
+    pub seed: String,
     /// Information inherent to the participant outside of the simulation
     pub id_info: IdInfo,
     /// A Map from public keys to the perceived reliability of the associated participant
@@ -165,6 +167,7 @@ pub fn test_reliability_map() {
     // create a default Identity
     let mut id: Identity<u8> = Identity {
         channel_client: 4,
+        seed: String::from(" "),
         id_info: IdInfo {
             did_key: [0; 32],
             reliability: 1.0,

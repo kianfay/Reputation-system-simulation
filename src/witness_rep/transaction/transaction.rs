@@ -426,9 +426,12 @@ pub async fn transact(
 
     println!("Participants unregister from channel:");
     for i in 0..transacting_clients.len() {
+        transacting_clients[i].reset_state()?;
         transacting_clients[i].unregister();
     }
     for i in 0..witness_clients.len() {
+
+        witness_clients[i].reset_state()?;
         witness_clients[i].unregister();
     }
     println!("-- All participants unregistered");
