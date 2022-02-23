@@ -6,7 +6,7 @@ mod witness_rep;
 async fn main() -> Result<()> {
     let url = "http://0.0.0.0:14265";
 
-/*     let sc = witness_rep::simulation::SimulationConfig {
+    let sc = witness_rep::simulation::SimulationConfig {
         node_url: String::from(url),
         num_participants: 15,
         average_proximity: 0.5,
@@ -16,18 +16,6 @@ async fn main() -> Result<()> {
         reliability_threshold: vec![0.5; 15],
         default_reliability: vec![0.5; 15],
         organizations: vec![0,0,1,1,2,2,1,1,0,1,0,2,2,1,0]
-    }; */
-
-    let sc = witness_rep::simulation::SimulationConfig {
-        node_url: String::from(url),
-        num_participants: 5,
-        average_proximity: 1.0,
-        witness_floor: 2,
-        runs: 2,
-        reliability: vec![1.0; 5],
-        reliability_threshold: vec![0.5; 5],
-        default_reliability: vec![0.5; 5],
-        organizations: vec![0,1,1,0,1]
     };
 
     witness_rep::simulation::simulation(sc).await?;

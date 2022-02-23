@@ -379,7 +379,7 @@ pub fn generate_trans_and_witnesses(
     // Each iteration of the upper loop is one of the transacting nodes searching for
     // witnesses. We must work with indexes instead of actual objects to removing potential
     // witnesses from the list for transacting nodes of indices larger than 0
-    let tn_witnesses_lists: &mut Vec<Vec<usize>> = &mut Vec::new();
+    let mut tn_witnesses_lists: Vec<Vec<usize>> = Vec::new();
 
     println!("Selecting participants to be transacting nodes and witnesses:");
     for i in 0..transacting_clients.len(){
@@ -405,21 +405,31 @@ pub fn generate_trans_and_witnesses(
 
     // The transacting participants combine their witnesses, and check if there are enough.
     // Using BTreeSet because it is ordered
-    let mut set_of_witnesses: BTreeSet<&mut usize> = BTreeSet::new();
-    for witnesses in tn_witnesses_lists{
-        for witness in witnesses{
-            set_of_witnesses.insert(witness);
-        }
+    let mut main_set_of_witnesses: BTreeSet<usize> = BTreeSet::new();
+    for witness in tn_witnesses_lists[1].clone(){
+        main_set_of_witnesses.insert(witness);
     }
 
-    if set_of_witnesses.len() < witness_floor {
+    for i in 0..tn_witnesses_lists.len() {
+        let mut set_of_witnesses: BTreeSet<usize> = BTreeSet::new();
+        for witness in tn_witnesses_lists[i].clone(){
+            set_of_witnesses.insert(witness);
+        }
+        println!("---- DEBUG - Current list of to be intersected: {:?}", set_of_witnesses);
+        main_set_of_witnesses = main_set_of_witnesses.intersection(&set_of_witnesses).cloned().collect();
+        println!("---- DEBUG - Current list of witness indices: {:?}", main_set_of_witnesses);
+    }
+
+    println!("-- Final list of witness indices: {:?}", main_set_of_witnesses);
+
+    if main_set_of_witnesses.len() < witness_floor {
         panic!("Not enough witnesses were generated.")
     }
 
     // convert indices into objects (as it is ordered, we can account for
     // the changing indices)
-    for (i, witness) in set_of_witnesses.iter().enumerate() {
-        witness_clients.push(participants.remove(**witness - i))
+    for (i, witness) in main_set_of_witnesses.iter().enumerate() {
+        witness_clients.push(participants.remove(*witness - i))
     }
 
     return Ok((transacting_clients, witness_clients));
