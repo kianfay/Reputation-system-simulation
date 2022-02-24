@@ -39,14 +39,8 @@ pub enum WhichBranch {
 
 /// Returns whether the transaction msgs were valid, the messages, and the channel pks which signed the msgs
 pub async fn verify_txs(
-    msgs: Vec<UnwrappedMessage>,
-    branches: WhichBranch
+    msgs: Vec<(String,String)>
 ) -> Result<(bool, Vec<String>, Vec<String>)> {
-    
-    let branches_msgs = extract_msgs::extract_msg(msgs, branches);
-    let msgs: Vec<(String, String)> = branches_msgs.into_iter()
-        .flatten()
-        .collect();
 
     let only_msgs = msgs.iter().map(|(msg, _)| msg.clone()).collect();
     let only_pks = msgs.iter().map(|(_, pk)| pk.clone()).collect();
@@ -85,6 +79,8 @@ pub fn verify_msg( (tx_msg,channel_pk) : (message::Message, &String), mut valid_
         message::Message::TransactionMsg {
             contract, witnesses, wit_node_sigs, tx_client_sigs
         } => {
+            println!("CHANNEL_PK: {:?}", PublickeyOwner::Witness(channel_pk.clone()));
+
             let tx_msg = message::Message::TransactionMsg {contract, witnesses, wit_node_sigs, tx_client_sigs};
             let (message::ArrayOfWnSignitures(wit_sigs), message::ArrayOfTxSignitures(tn_sigs)) = get_sigs(tx_msg);
             
@@ -123,6 +119,7 @@ pub fn verify_msg( (tx_msg,channel_pk) : (message::Message, &String), mut valid_
         } => {
             //println!("Inside here");
             let wrapped_channel_pk = PublickeyOwner::Witness(channel_pk.clone());
+            println!("CHANNEL_PK: {:?}", wrapped_channel_pk);
             //println!("{:?}", wrapped_channel_pk);
             if valid_pks.contains(&wrapped_channel_pk) {
                 return Ok((true, None));

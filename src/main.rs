@@ -6,7 +6,7 @@ mod witness_rep;
 async fn main() -> Result<()> {
     let url = "http://0.0.0.0:14265";
 
-    let sc = witness_rep::simulation::SimulationConfig {
+/*     let sc = witness_rep::simulation::SimulationConfig {
         node_url: String::from(url),
         num_participants: 15,
         average_proximity: 0.7,
@@ -18,13 +18,27 @@ async fn main() -> Result<()> {
         organizations: vec![0,0,1,1,2,2,1,1,0,1,0,2,2,1,0]
     };
 
-    witness_rep::simulation::simulation(sc).await?;
+    witness_rep::simulation::simulation(sc).await?; */
 
-/*     let ann = "10a54dd01a48799c8def58b315a85b2aa62ccd3ca443c75350234054d11230160000000000000000:d5227ec97cc8597a471b9478";
-    let seed = "Participant 0";
+/*     let sc = witness_rep::simulation::SimulationConfig {
+        node_url: String::from(url),
+        num_participants: 4,
+        average_proximity: 1.0,
+        witness_floor: 2,
+        runs: 2,
+        reliability: vec![1.0; 4],
+        reliability_threshold: vec![0.5; 4],
+        default_reliability: vec![0.5; 4],
+        organizations: vec![1,1,1,1,1]
+    };
+
+    witness_rep::simulation::simulation(sc).await?; */
+
+    let ann = "9f03c278ec29e639ae621cc3cc054c75b345863f5119088a2985b367dae1c2600000000000000000:768f2c1e0cf4fcc27dffbe14";
+    let seed = "OXQZDVLBSRKJUZHQNSQUGKSXAJEZVP9IHQQOJPBUQZVPLPTMPJBVIOVZTDRUK9RJQCWNCDUMREDUBPFIG";
     let channel_msgs = witness_rep::utility::read_msgs::read_msgs(url, ann, seed).await?;
     let branch_msgs = witness_rep::utility::extract_msgs::extract_msg(channel_msgs, witness_rep::utility::verify_tx::WhichBranch::LastBranch);
-    println!("{:?}", branch_msgs[0]); */
+    println!("{:?}", branch_msgs[0]);
 
     Ok(())
 }

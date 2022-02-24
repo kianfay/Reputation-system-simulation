@@ -131,7 +131,8 @@ pub async fn transact(
     transacting_ids: &mut Vec<ParticipantIdentity>,
     witness_ids: &mut Vec<ParticipantIdentity>,
     organization_id: &mut OrganizationIdentity,
-    lazy_method: LazyMethod
+    lazy_method: LazyMethod,
+    run: usize
 ) -> Result<(Vec<bool>, Vec<bool>)> {
     const DEFAULT_TIMEOUT : u32 = 60*2; // 2 mins
     let ann_str = organization_id.ann_msg.as_ref().unwrap();
@@ -249,6 +250,13 @@ pub async fn transact(
     println!("Transacting nodes generate their signatures:");
     let mut transacting_sigs: Vec<transacting_sig::TransactingSig> = Vec::new();
     for i in 0..transacting_clients.len() {
+
+        // DEBUG
+        let pubk = MethodData::new_multibase(transacting_clients[i].get_public_key());
+        if let MethodData::PublicKeyMultibase(mbpub) = pubk {
+            println!("PK: {}", mbpub);        
+        }
+
         let multibase_pub = MethodData::new_multibase(transacting_clients[i].get_public_key());
         let channel_pk_as_multibase: String;
         if let MethodData::PublicKeyMultibase(mbpub) = multibase_pub {
@@ -395,7 +403,7 @@ pub async fn transact(
         // TN prepares the compensation transaction 
         let payments_tn_a = vec![
             //"tn_b: 0.1".to_string(),
-            "wn_a: 0.01".to_string(),
+            format!("wn_a: 0.01 -- run: {}", run).to_string(),
             "wn_b: 0.01".to_string()
         ];
         let compensation_msg = message::Message::CompensationMsg {
@@ -406,6 +414,13 @@ pub async fn transact(
         let compensation_tx = vec![
             compensation_msg_str
         ];
+
+        // DEBUG
+        let pubk = MethodData::new_multibase(transacting_clients[i].get_public_key());
+        if let MethodData::PublicKeyMultibase(mbpub) = pubk {
+            println!("PK: {}", mbpub);        
+        }
+       
 
         // TN sends the compensation transaction
         sync_all(&mut transacting_clients).await?;

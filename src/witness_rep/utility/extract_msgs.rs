@@ -58,6 +58,8 @@ pub fn extract_msg(
                 } => {
                     // decode the message and check if it's a tx_msg
                     let pay = String::from_utf8(public_payload.0.to_vec()).unwrap();
+                    println!("Next Debug: {}\n", pay);
+
                     // first 16 chars = {"TransactionMsg
                     let substr = &pay[0..16];
                     if substr == "{\"TransactionMsg" {

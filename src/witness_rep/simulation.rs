@@ -47,7 +47,7 @@ pub struct SimulationConfig {
     pub reliability: Vec<f32>,
     pub reliability_threshold: Vec<f32>,
     pub default_reliability: Vec<f32>,
-    pub organizations: Vec<usize>
+    pub organizations: Vec<usize>,
 }
 
 // For now this simulation is capturing the abstract scenario where the initiating participant wishes 
@@ -106,6 +106,8 @@ pub async fn simulation(
                 .unwrap()
         })
         .collect::<String>();
+
+        println!("{}", seed);
 
         let on: Author<Tangle> = Author::new(seed, ChannelType::MultiBranch, client.clone());
         let repeat_kp = KeyPair::try_from_ed25519_bytes(&sec)?;
@@ -221,7 +223,8 @@ pub async fn simulation(
             lazy_methods[i].clone(),
             &sc.node_url,
             &format!("output_{}", i),
-            &mut rand_gen
+            &mut rand_gen,
+            i
         ).await?;
 
         participants = reset_clients(participants, client.clone())?;
@@ -250,7 +253,8 @@ pub async fn simulation_iteration(
     lazy_method: LazyMethod,
     node_url: &str,
     output_name: &str,
-    rand_gen: &mut rand::prelude::ThreadRng
+    rand_gen: &mut rand::prelude::ThreadRng,
+    run: usize
 ) -> Result<()> {
 
     //--------------------------------------------------------------
@@ -289,7 +293,8 @@ pub async fn simulation_iteration(
         &mut transacting_clients,
         &mut witness_clients,
         &mut organizations[org_index],
-        lazy_method
+        lazy_method,
+        run
     ).await?;
 
     // put the particpants back into the original array
@@ -303,9 +308,15 @@ pub async fn simulation_iteration(
     // verify the transaction
     let ann_msg = &organizations[org_index].ann_msg.as_ref().unwrap();
     let org_seed = &organizations[org_index].seed;
-    let branches = verify_tx::WhichBranch::LastBranch;
     let channel_msgs = read_msgs::read_msgs(node_url, ann_msg, org_seed).await?;
-    let (verified, msgs, pks) = verify_tx::verify_txs(channel_msgs, branches).await?;
+
+    let branches = verify_tx::WhichBranch::LastBranch;
+    let branch_msgs = extract_msgs::extract_msg(channel_msgs, branches);
+    let msgs: Vec<(String, String)> = branch_msgs.into_iter()
+        .flatten()
+        .collect();
+
+    let (verified, _, _) = verify_tx::verify_txs(msgs.clone()).await?;
 
     if !verified {
         panic!("One of the messages could not be verified");
@@ -315,10 +326,10 @@ pub async fn simulation_iteration(
     let mut output: String = String::new();
     let info = format!("TN honesty {:?}\nWN honesty: {:?}\n\n", tn_honesty, wn_honesty);
     output.push_str(&info);
-    for i in 0..msgs.len() {
+    for (msg, pk) in msgs.clone() {
         // print the message and then the id_info of the sender
-        let msg = format!("Message {:?}\n", msgs[i]);
-        let pk = format!("Channel pubkey: {:?}\n\n", pks[i]);
+        let msg = format!("Message {:?}\n", msg);
+        let pk = format!("Channel pubkey: {:?}\n\n", pk);
         output.push_str(&msg);
         output.push_str(&pk);
     }
@@ -330,10 +341,8 @@ pub async fn simulation_iteration(
     //--------------------------------------------------------------
 
     // participants update their reliability scores of each other
-    let channel_msgs = read_msgs::read_msgs(node_url, ann_msg, org_seed).await?;
-    let branch_msgs = extract_msgs::extract_msg(channel_msgs, verify_tx::WhichBranch::LastBranch);
-    //println!("HHHHEERREEE: {:?}", branch_msgs);
-    let parsed_msgs = parse_messages::parse_messages(&branch_msgs[0])?;
+    println!("HHHHEERREEE: {:?}", msgs);
+    let parsed_msgs = parse_messages::parse_messages(&msgs)?;
     for part in participants.into_iter() {
         let (tn_verdicts, wn_verdicts) = tsg_organization(
             parsed_msgs.clone(),
@@ -382,51 +391,57 @@ pub fn generate_trans_and_witnesses(
     // Each iteration of the upper loop is one of the transacting nodes searching for
     // witnesses. We must work with indexes instead of actual objects to removing potential
     // witnesses from the list for transacting nodes of indices larger than 0
-    let mut tn_witnesses_lists: Vec<Vec<usize>> = Vec::new();
+    let mut tn_witnesses_lists: Vec<Vec<usize>>;
+    let mut main_set_of_witnesses: BTreeSet<usize>;
 
-    println!("Selecting participants to be transacting nodes and witnesses:");
-    for i in 0..transacting_clients.len(){
-        println!("-- Transacting node {} is finding witnesses:", i);
-        let mut tn_witnesses: Vec<usize> = Vec::new();
+    // loops untill a valid set of witness nodes are found
+    loop {
+        tn_witnesses_lists = Vec::new();
+        main_set_of_witnesses = BTreeSet::new();
 
-        for j in 0..participants.len(){
-            let rand: f32 = rand_gen.gen();
-            println!("---- Trying participant {}. Rand={}. Avg proximity={}", j, rand, average_proximity);
-            if average_proximity > rand {
-                println!("---- Checking participant {}'s reliability", j);
-                let potential_wn_pk = participants[j].id_info.org_cert.client_pubkey.clone();
-                if transacting_clients[i].check_participant(&potential_wn_pk){
-                    tn_witnesses.push(j);
-                    println!("------ Participant {} added", j);
+        println!("Selecting participants to be transacting nodes and witnesses:");
+        for i in 0..transacting_clients.len(){
+            println!("-- Transacting node {} is finding witnesses:", i);
+            let mut tn_witnesses: Vec<usize> = Vec::new();
+
+            for j in 0..participants.len(){
+                let rand: f32 = rand_gen.gen();
+                println!("---- Trying participant {}. Rand={}. Avg proximity={}", j, rand, average_proximity);
+                if average_proximity > rand {
+                    println!("---- Checking participant {}'s reliability", j);
+                    let potential_wn_pk = participants[j].id_info.org_cert.client_pubkey.clone();
+                    if transacting_clients[i].check_participant(&potential_wn_pk){
+                        tn_witnesses.push(j);
+                        println!("------ Participant {} added", j);
+                    }
                 }
             }
+
+            println!("---- Found witnesses at indices: {:?}\n", tn_witnesses);
+            tn_witnesses_lists.push(tn_witnesses);
         }
 
-        println!("---- Found witnesses at indices: {:?}\n", tn_witnesses);
-        tn_witnesses_lists.push(tn_witnesses);
-    }
-
-    // The transacting participants combine their witnesses, and check if there are enough.
-    // Using BTreeSet because it is ordered
-    let mut main_set_of_witnesses: BTreeSet<usize> = BTreeSet::new();
-    for witness in tn_witnesses_lists[1].clone(){
-        main_set_of_witnesses.insert(witness);
-    }
-
-    for i in 0..tn_witnesses_lists.len() {
-        let mut set_of_witnesses: BTreeSet<usize> = BTreeSet::new();
-        for witness in tn_witnesses_lists[i].clone(){
-            set_of_witnesses.insert(witness);
+        // The transacting participants combine their witnesses, and check if there are enough.
+        // Using BTreeSet because it is ordered
+        for witness in tn_witnesses_lists[1].clone(){
+            main_set_of_witnesses.insert(witness);
         }
-        println!("---- DEBUG - Current list of to be intersected: {:?}", set_of_witnesses);
-        main_set_of_witnesses = main_set_of_witnesses.intersection(&set_of_witnesses).cloned().collect();
-        println!("---- DEBUG - Current list of witness indices: {:?}", main_set_of_witnesses);
-    }
 
-    println!("-- Final list of witness indices: {:?}", main_set_of_witnesses);
+        for i in 0..tn_witnesses_lists.len() {
+            let mut set_of_witnesses: BTreeSet<usize> = BTreeSet::new();
+            for witness in tn_witnesses_lists[i].clone(){
+                set_of_witnesses.insert(witness);
+            }
+            println!("---- DEBUG - Current list of to be intersected: {:?}", set_of_witnesses);
+            main_set_of_witnesses = main_set_of_witnesses.intersection(&set_of_witnesses).cloned().collect();
+            println!("---- DEBUG - Current list of witness indices: {:?}", main_set_of_witnesses);
+        }
 
-    if main_set_of_witnesses.len() < witness_floor {
-        panic!("Not enough witnesses were generated.")
+        println!("-- Final list of witness indices: {:?}", main_set_of_witnesses);
+
+        if main_set_of_witnesses.len() >= witness_floor {
+            break;
+        }
     }
 
     // convert indices into objects (as it is ordered, we can account for
