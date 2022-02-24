@@ -43,10 +43,10 @@ pub async fn verify_txs(
     branches: WhichBranch
 ) -> Result<(bool, Vec<String>, Vec<String>)> {
     
-    let branches_msgs = extract_msgs::extract_msg(msgs, branches);
-    let msgs: Vec<(String, String)> = branches_msgs.into_iter()
+    let msgs = extract_msgs::extract_msg(msgs, branches);
+/*     let msgs: Vec<(String, String)> = branches_msgs.into_iter()
         .flatten()
-        .collect();
+        .collect(); */
 
     let only_msgs = msgs.iter().map(|(msg, _)| msg.clone()).collect();
     let only_pks = msgs.iter().map(|(_, pk)| pk.clone()).collect();

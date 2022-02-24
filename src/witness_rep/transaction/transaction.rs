@@ -131,7 +131,8 @@ pub async fn transact(
     transacting_ids: &mut Vec<ParticipantIdentity>,
     witness_ids: &mut Vec<ParticipantIdentity>,
     organization_id: &mut OrganizationIdentity,
-    lazy_method: LazyMethod
+    lazy_method: LazyMethod,
+    run: usize
 ) -> Result<(Vec<bool>, Vec<bool>)> {
     const DEFAULT_TIMEOUT : u32 = 60*2; // 2 mins
     let ann_str = organization_id.ann_msg.as_ref().unwrap();
@@ -289,7 +290,8 @@ pub async fn transact(
     //--------------------------------------------------------------
 
     // serialise the tx
-    let tx_msg_str = serde_json::to_string(&transaction_msg)?; 
+    let mut tx_msg_str = serde_json::to_string(&transaction_msg)?; 
+    tx_msg_str = workaround_channel_bug(run, tx_msg_str);
     let tx_message = vec![
         tx_msg_str
     ];
@@ -361,8 +363,9 @@ pub async fn transact(
         let wn_statement = message::Message::WitnessStatement {
             outcome: outcomes[i].clone()
         };
-        let wn_statement_string = serde_json::to_string(&wn_statement)?;
+        let mut wn_statement_string = serde_json::to_string(&wn_statement)?;
 
+        wn_statement_string = workaround_channel_bug(run, wn_statement_string);
         let witness_message = vec![
             wn_statement_string
         ];
@@ -401,8 +404,9 @@ pub async fn transact(
         let compensation_msg = message::Message::CompensationMsg {
             payments: payments_tn_a
         };
-        let compensation_msg_str = serde_json::to_string(&compensation_msg)?;
+        let mut compensation_msg_str = serde_json::to_string(&compensation_msg)?;
 
+        compensation_msg_str = workaround_channel_bug(run, compensation_msg_str);
         let compensation_tx = vec![
             compensation_msg_str
         ];
@@ -437,4 +441,11 @@ pub async fn transact(
     println!("-- All participants unregistered");
     
     return Ok((honest_tranascting_ids, honest_witness_ids));
+}
+
+pub fn workaround_channel_bug(run: usize, tx: String) -> String {
+    let mut st = format!("{}", run);
+    st.push_str(&tx);
+    println!("Checking if the workaround works: {}", st);
+    return st;
 }

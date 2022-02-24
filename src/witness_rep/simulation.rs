@@ -47,7 +47,7 @@ pub struct SimulationConfig {
     pub reliability: Vec<f32>,
     pub reliability_threshold: Vec<f32>,
     pub default_reliability: Vec<f32>,
-    pub organizations: Vec<usize>
+    pub organizations: Vec<usize>,
 }
 
 // For now this simulation is capturing the abstract scenario where the initiating participant wishes 
@@ -221,7 +221,8 @@ pub async fn simulation(
             lazy_methods[i].clone(),
             &sc.node_url,
             &format!("output_{}", i),
-            &mut rand_gen
+            &mut rand_gen,
+            i
         ).await?;
 
         participants = reset_clients(participants, client.clone())?;
@@ -250,7 +251,8 @@ pub async fn simulation_iteration(
     lazy_method: LazyMethod,
     node_url: &str,
     output_name: &str,
-    rand_gen: &mut rand::prelude::ThreadRng
+    rand_gen: &mut rand::prelude::ThreadRng,
+    run: usize
 ) -> Result<()> {
 
     //--------------------------------------------------------------
@@ -289,7 +291,8 @@ pub async fn simulation_iteration(
         &mut transacting_clients,
         &mut witness_clients,
         &mut organizations[org_index],
-        lazy_method
+        lazy_method,
+        run
     ).await?;
 
     // put the particpants back into the original array
@@ -333,7 +336,7 @@ pub async fn simulation_iteration(
     let channel_msgs = read_msgs::read_msgs(node_url, ann_msg, org_seed).await?;
     let branch_msgs = extract_msgs::extract_msg(channel_msgs, verify_tx::WhichBranch::LastBranch);
     //println!("HHHHEERREEE: {:?}", branch_msgs);
-    let parsed_msgs = parse_messages::parse_messages(&branch_msgs[0])?;
+    let parsed_msgs = parse_messages::parse_messages(&branch_msgs)?;
     for part in participants.into_iter() {
         let (tn_verdicts, wn_verdicts) = tsg_organization(
             parsed_msgs.clone(),

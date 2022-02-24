@@ -7,15 +7,15 @@ use identity::{
     did::MethodData
 };
 
+use std::collections::HashMap;
+
 
 // Ectracts all message payloads and pubkeys from each branch. start_branch
 // starts at 0.
 pub fn extract_msg(
     retrieved_msgs: Vec<UnwrappedMessage>,
     branches: WhichBranch
-) -> Vec<Vec<(String, String)>> {
-    let mut messages: Vec<Vec<(String, String)>> = Vec::new();
-
+) -> Vec<(String, String)> {
     /* retrieved_msgs
         .iter()
         .for_each(|msg| {
@@ -44,6 +44,8 @@ pub fn extract_msg(
                 }
             }
         }); */
+    let mut last_branch = 0;
+    let mut messages: HashMap<usize, Vec<(String, String)>> = HashMap::new();
     let new_vec: Vec<(String, String)> = Vec::from([]);
     
     retrieved_msgs
@@ -57,17 +59,32 @@ pub fn extract_msg(
                     masked_payload: _,
                 } => {
                     // decode the message and check if it's a tx_msg
-                    let pay = String::from_utf8(public_payload.0.to_vec()).unwrap();
+                    let mut pay = String::from_utf8(public_payload.0.to_vec()).unwrap();
+                    println!("{}", pay);
+                    let run = &pay[0..1].to_string();
+                    let run_i = run.parse::<usize>().unwrap();
+
+                    if run_i > last_branch {
+                        last_branch = run_i;
+                    }
+
+                    pay = (&pay[1..]).to_string();
+
                     // first 16 chars = {"TransactionMsg
                     let substr = &pay[0..16];
+                    println!("Here0");
+                    println!("{}", substr);
                     if substr == "{\"TransactionMsg" {
-                        
-                        messages.push(new_vec.clone());
+                        messages.insert(run_i, new_vec.clone());
+                        println!("Here1");
                     }
 
                     let pubk = MethodData::new_multibase(pk);
                     if let MethodData::PublicKeyMultibase(mbpub) = pubk {
-                        messages.last_mut().unwrap().push((pay, mbpub));
+                        println!("Here2");
+                        let mut branch = messages.remove(&run_i).unwrap();
+                        branch.push((pay, mbpub));
+                        messages.insert(run_i, branch);
                     } else {
                         panic!("Failed to decode public key")
                     }
@@ -76,14 +93,10 @@ pub fn extract_msg(
             }
         });
     
-    
+    // TODO OneBranch and FromBranch
     return match branches {
-        WhichBranch::OneBranch(b)  => vec![Vec::from(messages[b].clone())],
-        WhichBranch::FromBranch(b) => messages.into_iter()
-                                        .enumerate()
-                                        .filter(|(i,_)| *i >= b)
-                                        .map(|(_,br)| br)
-                                        .collect(),
-        WhichBranch::LastBranch  => vec![Vec::from(messages[messages.len()-1].clone())],
+        WhichBranch::OneBranch(b)  => messages.remove(&last_branch).unwrap(),
+        WhichBranch::FromBranch(b) => messages.remove(&last_branch).unwrap(),
+        WhichBranch::LastBranch  => messages.remove(&last_branch).unwrap(),
     };
 }
