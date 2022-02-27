@@ -1,0 +1,964 @@
+- hash the witness sigs together in the tn sig
+- hash the contract
+- use different serde serial format
+{
+    "TransactionMsg": {
+        "contract": {
+            "contract_definition": "tn_b allows tn_a take their place in the queue",
+            "participants": [
+                "zBVkhgR3meiUep9ZunWcaaYFKUfczgWnHwgTsydybx9L6",
+                "z4PLQb2RfwUNmUReiDV7pzQaMf89LT6ykZ7SAFKuWDg4X"
+            ],
+            "time": 1643572739,
+            "location": [
+                [
+                    53,
+                    20,
+                    27.036
+                ],
+                [
+                    6,
+                    15,
+                    2.695
+                ]
+            ]
+        },
+        "witnesses": [
+            "zEvzXoQKWoKtiCjy5e1rMALvoKF7QXAvC3JEaMGDLMoTD",
+            "zHsmc6zUWjHr6a5f4esNXNawqTfy83YFQ551TAAWfs7qx",
+            "z2bGGWMjBciVjPsR86dYpsHiAL9rCDsqq7oj7oK6ijhF9",
+            "z5krZLmjEwY5HP8UQCqkkUYBeFhkbZNKkEt7gNaHMoaST",
+            "zG2Jd4cg9jqs5QE1rxYcwa8prNqQj8zbM83EpXVRxbAC",
+            "z2Hu7wLcTmpkvRBiCABvHAXtyBNwcAjw9XuHNLgsxVbCg",
+            "zJ4iwkk4wFUftKENUFfAfMLw3i4pE2BToyYPitz1ELq77"
+        ],
+        "wit_node_sigs": [
+            {
+                "contract": {
+                    "contract_definition": "tn_b allows tn_a take their place in the queue",
+                    "participants": [
+                        "zBVkhgR3meiUep9ZunWcaaYFKUfczgWnHwgTsydybx9L6",
+                        "z4PLQb2RfwUNmUReiDV7pzQaMf89LT6ykZ7SAFKuWDg4X"
+                    ],
+                    "time": 1643572739,
+                    "location": [
+                        [
+                            53,
+                            20,
+                            27.036
+                        ],
+                        [
+                            6,
+                            15,
+                            2.695
+                        ]
+                    ]
+                },
+                "signer_channel_pubkey": "z9qDrjFiAbG7Q953ocFD9QrWkUo5RCubhF93XRS9NkgjW",
+                "org_cert": {
+                    "client_pubkey": "zEvzXoQKWoKtiCjy5e1rMALvoKF7QXAvC3JEaMGDLMoTD",
+                    "duration": 31536000,
+                    "org_pubkey": "z7ytfEhR7ouwBDrLHAtdj5pmSbet4Ga64LWtTVge1NzkP",
+                    "signature": [
+                        162,
+                        178,
+                        93,
+                        79,
+                        18,
+                        76,
+                        146,
+                        51,
+                        79,
+                        123,
+                        250,
+                        250,
+                        255,
+                        228,
+                        27,
+                        186,
+                        53,
+                        52,
+                        3
+                    ]
+                },
+                "timeout": 120,
+                "signer_did_pubkey": "zEvzXoQKWoKtiCjy5e1rMALvoKF7QXAvC3JEaMGDLMoTD",
+                "signature": [
+                    249,
+                    20,
+                    218,
+                    115,
+                    121,
+                    187,
+                    156,
+                    6,
+                    15
+                ]
+            },
+            {
+                "contract": {
+                    "contract_definition": "tn_b allows tn_a take their place in the queue",
+                    "participants": [
+                        "zBVkhgR3meiUep9ZunWcaaYFKUfczgWnHwgTsydybx9L6",
+                        "z4PLQb2RfwUNmUReiDV7pzQaMf89LT6ykZ7SAFKuWDg4X"
+                    ],
+                    "time": 1643572739,
+                    "location": [
+                        [
+                            53,
+                            20,
+                            27.036
+                        ],
+                        [
+                            6,
+                            15,
+                            2.695
+                        ]
+                    ]
+                },
+                "signer_channel_pubkey": "z6JDSnviXQVH2c9cErsybMYwiRzVubNeFNstvrMWWGxj6",
+                "org_cert": {
+                    "client_pubkey": "zHsmc6zUWjHr6a5f4esNXNawqTfy83YFQ551TAAWfs7qx",
+                    "duration": 31536000,
+                    "org_pubkey": "z6TsGgn1FQyRiemnspP7Xkc4GRmXsL1qJKbGhqPoFBjux",
+                    "signature": [
+                        54,
+                        15,
+                        177,
+                        217,
+                        244,
+                        117,
+                        169,
+                        136,
+                        180,
+                        85,
+                        106,
+                        203,
+                        65,
+                        17,
+                        39,
+                        64,
+                        255,
+                        26,
+                        88,
+                        159,
+                        178,
+                        107,
+                        102,
+                        36,
+                        197,
+                        250,
+                        63,
+                        119,
+                        3
+                    ]
+                },
+                "timeout": 120,
+                "signer_did_pubkey": "zHsmc6zUWjHr6a5f4esNXNawqTfy83YFQ551TAAWfs7qx",
+                "signature": [
+                    183,
+                    234,
+                    253,
+                    19,
+                    11,
+                    13,
+                    35,
+                    175,
+                    74,
+                    23,
+                    52,
+                    47,
+                    132,
+                    33,
+                    65,
+                    5,
+                    24,
+                    147,
+                    240,
+                    2
+                ]
+            },
+            {
+                "contract": {
+                    "contract_definition": "tn_b allows tn_a take their place in the queue",
+                    "participants": [
+                        "zBVkhgR3meiUep9ZunWcaaYFKUfczgWnHwgTsydybx9L6",
+                        "z4PLQb2RfwUNmUReiDV7pzQaMf89LT6ykZ7SAFKuWDg4X"
+                    ],
+                    "time": 1643572739,
+                    "location": [
+                        [
+                            53,
+                            20,
+                            27.036
+                        ],
+                        [
+                            6,
+                            15,
+                            2.695
+                        ]
+                    ]
+                },
+                "signer_channel_pubkey": "zCq8614h5jvb5w9jBjdh1jYbYkb2pWJudK13WzUeRjDY3",
+                "org_cert": {
+                    "client_pubkey": "z2bGGWMjBciVjPsR86dYpsHiAL9rCDsqq7oj7oK6ijhF9",
+                    "duration": 31536000,
+                    "org_pubkey": "z6TsGgn1FQyRiemnspP7Xkc4GRmXsL1qJKbGhqPoFBjux",
+                    "signature": [
+                        79,
+                        7,
+                        219,
+                        4
+                    ]
+                },
+                "timeout": 120,
+                "signer_did_pubkey": "z2bGGWMjBciVjPsR86dYpsHiAL9rCDsqq7oj7oK6ijhF9",
+                "signature": [
+                    
+                    133,
+                    121,
+                    114,
+                    242,
+                    107,
+                    96,
+                    208,
+                    3,
+                    20,
+                    77,
+                    218,
+                    157,
+                    204,
+                    139,
+                    127,
+                    223,
+                    125,
+                    44,
+                    201,
+                    222,
+                    4,
+                    56,
+                    73,
+                    214,
+                    40,
+                    159,
+                    220,
+                    174,
+                    138,
+                    129,
+                    70,
+                    183,
+                    54,
+                    29,
+                    126,
+                    3
+                ]
+            },
+            {
+                "contract": {
+                    "contract_definition": "tn_b allows tn_a take their place in the queue",
+                    "participants": [
+                        "zBVkhgR3meiUep9ZunWcaaYFKUfczgWnHwgTsydybx9L6",
+                        "z4PLQb2RfwUNmUReiDV7pzQaMf89LT6ykZ7SAFKuWDg4X"
+                    ],
+                    "time": 1643572739,
+                    "location": [
+                        [
+                            53,
+                            20,
+                            27.036
+                        ],
+                        [
+                            6,
+                            15,
+                            2.695
+                        ]
+                    ]
+                },
+                "signer_channel_pubkey": "zDJshGAQu1fgfwopGswdMFKdyGz9ge7o3G2hoyu5QNffo",
+                "org_cert": {
+                    "client_pubkey": "z5krZLmjEwY5HP8UQCqkkUYBeFhkbZNKkEt7gNaHMoaST",
+                    "duration": 31536000,
+                    "org_pubkey": "z7ytfEhR7ouwBDrLHAtdj5pmSbet4Ga64LWtTVge1NzkP",
+                    "signature": [
+                        
+                        67,
+                        115,
+                        191,
+                        92,
+                        141,
+                        29,
+                        202,
+                        92,
+                        214,
+                        232,
+                        104,
+                        192,
+                        67,
+                        22,
+                        251,
+                        68,
+                        189,
+                        216,
+                        121,
+                        245,
+                        58,
+                        193,
+                        2,
+                        104,
+                        193,
+                        178,
+                        69,
+                        165,
+                        111,
+                        5,
+                        84,
+                        255,
+                        242,
+                        120,
+                        206,
+                        45,
+                        143,
+                        236,
+                        53,
+                        1
+                    ]
+                },
+                "timeout": 120,
+                "signer_did_pubkey": "z5krZLmjEwY5HP8UQCqkkUYBeFhkbZNKkEt7gNaHMoaST",
+                "signature": [
+                    66,
+                    237,
+                    234,
+                    132,
+                    217,
+                    48,
+                    112,
+                    169,
+                    162,
+                    10,
+                    186,
+                    106,
+                    88,
+                    132,
+                    198,
+                    141,
+                    150,
+                    195,
+                    107,
+                    152,
+                    255,
+                    199,
+                    181,
+                    147,
+                    177,
+                    252,
+                    136,
+                    26,
+                    96,
+                    170,
+                    207,
+                    201,
+                    229,
+                    223,
+                    104,
+                    112,
+                    141,
+                    89,
+                    51,
+                    102,
+                    183,
+                    149,
+                    3
+                ]
+            },
+            {
+                "contract": {
+                    "contract_definition": "tn_b allows tn_a take their place in the queue",
+                    "participants": [
+                        "zBVkhgR3meiUep9ZunWcaaYFKUfczgWnHwgTsydybx9L6",
+                        "z4PLQb2RfwUNmUReiDV7pzQaMf89LT6ykZ7SAFKuWDg4X"
+                    ],
+                    "time": 1643572739,
+                    "location": [
+                        [
+                            53,
+                            20,
+                            27.036
+                        ],
+                        [
+                            6,
+                            15,
+                            2.695
+                        ]
+                    ]
+                },
+                "signer_channel_pubkey": "zTa74BXw7pnfJaiCVEuBNNqyGEBpc1adXa42VoyY8zAR",
+                "org_cert": {
+                    "client_pubkey": "zG2Jd4cg9jqs5QE1rxYcwa8prNqQj8zbM83EpXVRxbAC",
+                    "duration": 31536000,
+                    "org_pubkey": "z6TsGgn1FQyRiemnspP7Xkc4GRmXsL1qJKbGhqPoFBjux",
+                    "signature": [
+                        106,
+                        53,
+                        17,
+                        31,
+                        166,
+                        150,
+                        76,
+                        120,
+                        106,
+                        255,
+                        64,
+                        240,
+                        38,
+                        218,
+                        52,
+                        214,
+                        144,
+                        71,
+                        121,
+                        253,
+                        222,
+                        226,
+                        40,
+                        67,
+                        109,
+                        220,
+                        1
+                    ]
+                },
+                "timeout": 120,
+                "signer_did_pubkey": "zG2Jd4cg9jqs5QE1rxYcwa8prNqQj8zbM83EpXVRxbAC",
+                "signature": [
+                    227,
+                    143,
+                    7,
+                    112,
+                    94,
+                    215,
+                    21,
+                    28,
+                    145,
+                    2,
+                    27,
+                    59,
+                    141,
+                    30,
+                    54,
+                    88,
+                    254,
+                    42,
+                    247,
+                    158,
+                    204,
+                    89,
+                    233,
+                    16,
+                    159,
+                    40,
+                    62,
+                    3
+                ]
+            },
+            {
+                "contract": {
+                    "contract_definition": "tn_b allows tn_a take their place in the queue",
+                    "participants": [
+                        "zBVkhgR3meiUep9ZunWcaaYFKUfczgWnHwgTsydybx9L6",
+                        "z4PLQb2RfwUNmUReiDV7pzQaMf89LT6ykZ7SAFKuWDg4X"
+                    ],
+                    "time": 1643572739,
+                    "location": [
+                        [
+                            53,
+                            20,
+                            27.036
+                        ],
+                        [
+                            6,
+                            15,
+                            2.695
+                        ]
+                    ]
+                },
+                "signer_channel_pubkey": "z5ryG3aKEJAvuLrKCNb9WULabHgSkcPUBMHwXn9jqs2DY",
+                "org_cert": {
+                    "client_pubkey": "z2Hu7wLcTmpkvRBiCABvHAXtyBNwcAjw9XuHNLgsxVbCg",
+                    "duration": 31536000,
+                    "org_pubkey": "z6TsGgn1FQyRiemnspP7Xkc4GRmXsL1qJKbGhqPoFBjux",
+                    "signature": [
+                        248,
+                        73,
+                        227,
+                        139,
+                        53,
+                        83,
+                        195,
+                        174,
+                        245,
+                        225,
+                        226,
+                        48,
+                        86,
+                        239,
+                        218,
+                        228,
+                        238,
+                        230,
+                        74,
+                        173,
+                        180,
+                        231,
+                        128,
+                        145,
+                        78,
+                        230,
+                        248,
+                        76,
+                        166,
+                        164,
+                        179,
+                        92,
+                        33,
+                        146,
+                        195,
+                        206,
+                        56,
+                        2,
+                        66,
+                        148,
+                        92,
+                        107,
+                        12
+                    ]
+                },
+                "timeout": 120,
+                "signer_did_pubkey": "z2Hu7wLcTmpkvRBiCABvHAXtyBNwcAjw9XuHNLgsxVbCg",
+                "signature": [
+                    119,
+                    165,
+                    242,
+                    61,
+                    139,
+                    118,
+                    49,
+                    194,
+                    148,
+                    53,
+                    163,
+                    136,
+                    68,
+                    153,
+                    115,
+                    110,
+                    178,
+                    201,
+                    52,
+                    59,
+                    243,
+                    199,
+                    241,
+                    92,
+                    137,
+                    115,
+                    7,
+                    207,
+                    5,
+                    1
+                ]
+            },
+            {
+                "contract": {
+                    "contract_definition": "tn_b allows tn_a take their place in the queue",
+                    "participants": [
+                        "zBVkhgR3meiUep9ZunWcaaYFKUfczgWnHwgTsydybx9L6",
+                        "z4PLQb2RfwUNmUReiDV7pzQaMf89LT6ykZ7SAFKuWDg4X"
+                    ],
+                    "time": 1643572739,
+                    "location": [
+                        [
+                            53,
+                            20,
+                            27.036
+                        ],
+                        [
+                            6,
+                            15,
+                            2.695
+                        ]
+                    ]
+                },
+                "signer_channel_pubkey": "zDFU85AabXnhhQgBVU2mgXNi61T4P6FPnN5vesdjdof7c",
+                "org_cert": {
+                    "client_pubkey": "zJ4iwkk4wFUftKENUFfAfMLw3i4pE2BToyYPitz1ELq77",
+                    "duration": 31536000,
+                    "org_pubkey": "z6jgaPhWGWAGuaC8xMCKzNXPRgsZZE1BMonssxaFUNJ5p",
+                    "signature": [
+                        102,
+                        235,
+                        138,
+                        139,
+                        80,
+                        37,
+                        80,
+                        194,
+                        67,
+                        110,
+                        65,
+                        101,
+                        115,
+                        34,
+                        178,
+                        28,
+                        233,
+                        192,
+                        45,
+                        3,
+                        11,
+                        12,
+                        34,
+                        179,
+                        106,
+                        213,
+                        200,
+                        41,
+                        106,
+                        120,
+                        142,
+                        33,
+                        46,
+                        46,
+                        209,
+                        172,
+                        175,
+                        187,
+                        210,
+                        13
+                    ]
+                },
+                "timeout": 120,
+                "signer_did_pubkey": "zJ4iwkk4wFUftKENUFfAfMLw3i4pE2BToyYPitz1ELq77",
+                "signature": [
+                    209,
+                    107,
+                    143,
+                    183,
+                    139,
+                    22,
+                    173,
+                    64,
+                    73,
+                    103,
+                    196,
+                    25,
+                    77,
+                    170,
+                    180,
+                    145,
+                    64,
+                    237,
+                    139,
+                    101,
+                    132,
+                    29,
+                    96,
+                    119,
+                    204,
+                    177,
+                    254,
+                    193,
+                    189,
+                    28,
+                    200,
+                    244,
+                    33,
+                    168,
+                    138,
+                    11,
+                    191,
+                    10,
+                    91,
+                    20,
+                    7
+                ]
+            }
+        ],
+        "tx_client_sigs": [
+            {
+                "contract": {
+                    "contract_definition": "tn_b allows tn_a take their place in the queue",
+                    "participants": [
+                        "zBVkhgR3meiUep9ZunWcaaYFKUfczgWnHwgTsydybx9L6",
+                        "z4PLQb2RfwUNmUReiDV7pzQaMf89LT6ykZ7SAFKuWDg4X"
+                    ],
+                    "time": 1643572739,
+                    "location": [
+                        [
+                            53,
+                            20,
+                            27.036
+                        ],
+                        [
+                            6,
+                            15,
+                            2.695
+                        ]
+                    ]
+                },
+                "signer_channel_pubkey": "z3aYfFFynHZ4sbhcQj7GGBTBBRvua9B5W3QXruesjrW8i",
+                "witnesses": [
+                    "zEvzXoQKWoKtiCjy5e1rMALvoKF7QXAvC3JEaMGDLMoTD",
+                    "zHsmc6zUWjHr6a5f4esNXNawqTfy83YFQ551TAAWfs7qx",
+                    "z2bGGWMjBciVjPsR86dYpsHiAL9rCDsqq7oj7oK6ijhF9",
+                    "z5krZLmjEwY5HP8UQCqkkUYBeFhkbZNKkEt7gNaHMoaST",
+                    "zG2Jd4cg9jqs5QE1rxYcwa8prNqQj8zbM83EpXVRxbAC",
+                    "z2Hu7wLcTmpkvRBiCABvHAXtyBNwcAjw9XuHNLgsxVbCg",
+                    "zJ4iwkk4wFUftKENUFfAfMLw3i4pE2BToyYPitz1ELq77"
+                ],
+                "wit_node_sigs": [
+                    [
+                        207,
+                        38,
+                        61,
+                        14,
+                        54,
+                        184,
+                        58,
+                        252,
+                        56,
+                        238,
+                        12,
+                        130,
+                        217,
+                        141,
+                        25,
+                        1,
+                        221,
+                        32,
+                        80,
+                        110,
+                        101,
+                        57,
+                        152,
+                        110,
+                        117,
+                        36,
+                        24,
+                        219,
+                        22,
+                        220,
+                        249,
+                        20,
+                        218,
+                        115,
+                        121,
+                        187,
+                        156,
+                        6,
+                        15
+                    ],
+                    ]
+                ],
+                "org_cert": {
+                    "client_pubkey": "zBVkhgR3meiUep9ZunWcaaYFKUfczgWnHwgTsydybx9L6",
+                    "duration": 31536000,
+                    "org_pubkey": "z6jgaPhWGWAGuaC8xMCKzNXPRgsZZE1BMonssxaFUNJ5p",
+                    "signature": [
+                        
+                        197,
+                        42,
+                        68,
+                        16,
+                        126,
+                        10,
+                        206,
+                        72,
+                        79,
+                        196,
+                        132,
+                        125,
+                        210,
+                        150,
+                        90,
+                        170,
+                        124,
+                        26,
+                        110,
+                        254,
+                        156,
+                        161,
+                        246,
+                        4
+                    ]
+                },
+                "timeout": 120,
+                "signer_did_pubkey": "zBVkhgR3meiUep9ZunWcaaYFKUfczgWnHwgTsydybx9L6",
+                "signature": [
+                    
+                    117,
+                    167,
+                    86,
+                    85,
+                    133,
+                    90,
+                    166,
+                    230,
+                    115,
+                    46,
+                    9
+                ]
+            },
+            {
+                "contract": {
+                    "contract_definition": "tn_b allows tn_a take their place in the queue",
+                    "participants": [
+                        "zBVkhgR3meiUep9ZunWcaaYFKUfczgWnHwgTsydybx9L6",
+                        "z4PLQb2RfwUNmUReiDV7pzQaMf89LT6ykZ7SAFKuWDg4X"
+                    ],
+                    "time": 1643572739,
+                    "location": [
+                        [
+                            53,
+                            20,
+                            27.036
+                        ],
+                        [
+                            6,
+                            15,
+                            2.695
+                        ]
+                    ]
+                },
+                "signer_channel_pubkey": "z8Q1L9E4nbBhDbduQmiABJxAgfywRsiSYkznhF71rgTy3",
+                "witnesses": [
+                    "zEvzXoQKWoKtiCjy5e1rMALvoKF7QXAvC3JEaMGDLMoTD",
+                    "zHsmc6zUWjHr6a5f4esNXNawqTfy83YFQ551TAAWfs7qx",
+                    "z2bGGWMjBciVjPsR86dYpsHiAL9rCDsqq7oj7oK6ijhF9",
+                    "z5krZLmjEwY5HP8UQCqkkUYBeFhkbZNKkEt7gNaHMoaST",
+                    "zG2Jd4cg9jqs5QE1rxYcwa8prNqQj8zbM83EpXVRxbAC",
+                    "z2Hu7wLcTmpkvRBiCABvHAXtyBNwcAjw9XuHNLgsxVbCg",
+                    "zJ4iwkk4wFUftKENUFfAfMLw3i4pE2BToyYPitz1ELq77"
+                ],
+                "wit_node_sigs": [
+                    [
+                        
+                        31,
+                        1,
+                        115,
+                        229,
+                        13,
+                        145,
+                        32,
+                        14,
+                        75,
+                        90,
+                        68,
+                        32,
+                        87,
+                        195,
+                        182,
+                        119,
+                        186,
+                        255,
+                        250,
+                        105,
+                        139,
+                        101,
+                        132,
+                        29,
+                        96,
+                        119,
+                        204,
+                        177,
+                        254,
+                        193,
+                        189,
+                        28,
+                        200,
+                        244,
+                        33,
+                        168,
+                        138,
+                        11,
+                        191,
+                        10,
+                        91,
+                        20,
+                        7
+                    ]
+                ],
+                "org_cert": {
+                    "client_pubkey": "z4PLQb2RfwUNmUReiDV7pzQaMf89LT6ykZ7SAFKuWDg4X",
+                    "duration": 31536000,
+                    "org_pubkey": "z7ytfEhR7ouwBDrLHAtdj5pmSbet4Ga64LWtTVge1NzkP",
+                    "signature": [
+                        120,
+                        238,
+                        233,
+                        228,
+                        249,
+                        176,
+                        230,
+                        223,
+                        28,
+                        72,
+                        83,
+                        131,
+                        72,
+                        223,
+                        168,
+                        115,
+                        116,
+                        65,
+                        235,
+                        65,
+                        35,
+                        141,
+                        170,
+                        111,
+                        120,
+                        127,
+                        159,
+                        211,
+                        173,
+                        30,
+                        62,
+                        87,
+                        12
+                    ]
+                },
+                "timeout": 120,
+                "signer_did_pubkey": "z4PLQb2RfwUNmUReiDV7pzQaMf89LT6ykZ7SAFKuWDg4X",
+                "signature": [
+                    204,
+                    158,
+                    19,
+                    199,
+                    63,
+                    71,
+                    92,
+                    249,
+                    245,
+                    44,
+                    109,
+                    211,
+                    125,
+                    112,
+                    114,
+                    222,
+                    79,
+                    41,
+                    121,
+                    121,
+                    75,
+                    239,
+                    195,
+                    244,
+                    83,
+                    209,
+                    2
+                ]
+            }
+        ]
+    }
+}

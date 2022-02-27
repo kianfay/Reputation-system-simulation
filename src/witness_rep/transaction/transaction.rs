@@ -220,7 +220,8 @@ pub async fn transact(
             channel_pk_as_multibase,
             witness_did_kp[i].clone(),
             witness_org_certs[i].clone(),
-            DEFAULT_TIMEOUT
+            DEFAULT_TIMEOUT,
+            32
         )?;
         witness_sigs.push(sig.clone());
 
@@ -265,7 +266,8 @@ pub async fn transact(
             WitnessClients(witnesses.clone()),
             transacting_sig::ArrayOfWnSignituresBytes(witness_sigs_bytes.clone()),
             transacting_org_certs[i].clone(),
-            DEFAULT_TIMEOUT
+            DEFAULT_TIMEOUT,
+            32
         )?;
         transacting_sigs.push(sig);
     }

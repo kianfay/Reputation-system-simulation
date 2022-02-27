@@ -22,10 +22,29 @@ use identity::{
     did::MethodData,
 };
 
+use ed25519_dalek::{Sha512, Digest};
+
 #[derive(Clone,PartialEq,Debug)]
 pub enum PublickeyOwner {
     TransactingNode(String),
     Witness(String)
+}
+
+pub fn extract_wn_pks(pks: Vec<PublickeyOwner>) -> message::WitnessClients {
+    let pks = pks.iter().filter(|p| {
+        match p {
+            PublickeyOwner::Witness(_)  => true,
+            _                           => false
+        }
+    }).map(|w| {
+        match w {
+            PublickeyOwner::Witness(s)  => *s,
+            _                           => String::default()
+        }
+    })
+    .collect::<Vec<String>>();
+
+    return message::WitnessClients(pks);
 }
 
 pub enum WhichBranch {
@@ -66,7 +85,7 @@ pub async fn verify_txs(
             (true, None)        => true,
             (false, _)          => false
         };
-        println!("Valid pks: {:?}", valid_pks);
+        //println!("Valid pks: {:?}", valid_pks);
 
         println!("Verified status of msg: {}", final_verify);
         if !final_verify {
@@ -80,7 +99,7 @@ pub async fn verify_txs(
 /// Accepts a tuple of a message content and the sender's channel public key.
 /// If it is a valid TransactionMessage, it will return true and a valid channel public keys and it's ownership
 pub fn verify_msg( (tx_msg,channel_pk) : (message::Message, &String), mut valid_pks: Vec<PublickeyOwner>) -> Result<(bool, Option<Vec<PublickeyOwner>>)> {
-    println!("EEERRREEEHH: {:?}", tx_msg);
+    //println!("EEERRREEEHH: {:?}", tx_msg);
     match tx_msg {
         message::Message::TransactionMsg {
             contract, witnesses, wit_node_sigs, tx_client_sigs
@@ -88,7 +107,6 @@ pub fn verify_msg( (tx_msg,channel_pk) : (message::Message, &String), mut valid_
             let tx_msg = message::Message::TransactionMsg {contract, witnesses, wit_node_sigs, tx_client_sigs};
             let (message::ArrayOfWnSignitures(wit_sigs), message::ArrayOfTxSignitures(tn_sigs)) = get_sigs(tx_msg);
             
-            let mut witness_sigs: Vec<Vec<u8>> = Vec::new();
             // Check that each witness sig is valid, meaning it was sent by the owner of the DID,
             // not just any person who holds the public key of the DID
             for ws in wit_sigs.iter() {
@@ -97,7 +115,6 @@ pub fn verify_msg( (tx_msg,channel_pk) : (message::Message, &String), mut valid_
                     panic!("Signature verification failed")
                 } else {
                     valid_pks.push(PublickeyOwner::Witness(pk));
-                    witness_sigs.push(sig);
                 }
             }
 
@@ -133,7 +150,7 @@ pub fn verify_msg( (tx_msg,channel_pk) : (message::Message, &String), mut valid_
         } => {
             //println!("Inside here");
             let wrapped_channel_pk = PublickeyOwner::TransactingNode(channel_pk.clone());
-            println!("CHANNEL_PK: {:?}", wrapped_channel_pk);
+            //println!("CHANNEL_PK: {:?}", wrapped_channel_pk);
             if valid_pks.contains(&wrapped_channel_pk) {
                 return Ok((true, None));
             }
@@ -194,12 +211,15 @@ pub fn verify_witness_sig(
 }
 
 // returns a bool indicating if valid, and a string of the channel pubkey of this sub
-pub fn verify_tx_sig(sig: transacting_sig::TransactingSig, sorted_witness_sigs: Vec<Vec<u8>>) -> Result<(bool, String)>{
+pub fn verify_tx_sig(
+    sig: transacting_sig::TransactingSig,
+    witnesses: message::WitnessClients,
+    hash_len: usize
+) -> Result<(bool, String)>{
     match sig {
         transacting_sig::TransactingSig {
             contract,
             signer_channel_pubkey,
-            witnesses,
             wit_node_sigs,
             org_cert,
             timeout,
@@ -207,21 +227,15 @@ pub fn verify_tx_sig(sig: transacting_sig::TransactingSig, sorted_witness_sigs: 
             signature,
         } => {
 
-            // Ensure that the transacting sigs reference the exact same list of witnesses
-            // as the tx_msg. We can do this quickly by sorting both lists, and checking for
-            // equality (instead of checking each sig one at a time)
-            let mut sorted_wn_sigs_to_check = wit_node_sigs.clone().0;
-            sorted_wn_sigs_to_check.sort();
-
-            if sorted_wn_sigs_to_check != sorted_witness_sigs {
-                panic!("The witnesses linked in the transacting sig differ from those in the transaction message")
-            }
-
+            // generate the hash
+            witnesses.sort();
+            let ser_wns = serde_json::to_string(&witnesses)?;
+            let hash_wns = Sha512::digest(ser_wns.as_bytes());
+            let trun_hash_wns = Vec::from(&hash_wns[0..hash_len]);
 
             let pre_sig = transacting_sig::TransactingPreSig {
                 contract,
                 signer_channel_pubkey: signer_channel_pubkey.clone(),
-                witnesses,
                 wit_node_sigs,
                 org_cert: org_cert.clone(),
                 timeout,
