@@ -35,10 +35,12 @@ use std::convert::TryInto;
 use std::iter::FromIterator;
 use std::fs;
 use chrono::prelude::*;
+use serde::{Deserialize, Serialize};
 
 pub const ALPH9: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ9";
 pub const DEFAULT_DURATION: u32 = 60*60*24*365; // 1 year
 
+#[derive(Serialize)]
 pub struct SimulationConfig {
     pub node_url: String,
     pub num_participants: usize,
@@ -78,6 +80,12 @@ pub async fn simulation(
     let folder_name = format!("./runs/Emmulation run {:?}", time);
     println!("{}", folder_name);
     fs::create_dir(&folder_name)?;
+
+    
+    let file_name = format!("{}/sim_parameters.txt", &folder_name);
+    let output = serde_json::to_string(&sc)?;
+    fs::write(file_name, output).expect("Unable to write file");
+
 
     //--------------------------------------------------------------
     //--------------------------------------------------------------
