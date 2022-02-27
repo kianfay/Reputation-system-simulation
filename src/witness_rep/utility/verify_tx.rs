@@ -66,7 +66,7 @@ pub async fn verify_txs(
             (true, None)        => true,
             (false, _)          => false
         };
-        println!("Valid pks: {:?}", valid_pks);
+        //println!("Valid pks: {:?}", valid_pks);
 
         println!("Verified status of msg: {}", final_verify);
         if !final_verify {
@@ -80,7 +80,6 @@ pub async fn verify_txs(
 /// Accepts a tuple of a message content and the sender's channel public key.
 /// If it is a valid TransactionMessage, it will return true and a valid channel public keys and it's ownership
 pub fn verify_msg( (tx_msg,channel_pk) : (message::Message, &String), mut valid_pks: Vec<PublickeyOwner>) -> Result<(bool, Option<Vec<PublickeyOwner>>)> {
-    println!("EEERRREEEHH: {:?}", tx_msg);
     match tx_msg {
         message::Message::TransactionMsg {
             contract, witnesses, wit_node_sigs, tx_client_sigs
@@ -121,9 +120,7 @@ pub fn verify_msg( (tx_msg,channel_pk) : (message::Message, &String), mut valid_
         message::Message::WitnessStatement {
             outcome: _,
         } => {
-            //println!("Inside here");
             let wrapped_channel_pk = PublickeyOwner::Witness(channel_pk.clone());
-            //println!("{:?}", wrapped_channel_pk);
             if valid_pks.contains(&wrapped_channel_pk) {
                 return Ok((true, None));
             }
@@ -131,15 +128,12 @@ pub fn verify_msg( (tx_msg,channel_pk) : (message::Message, &String), mut valid_
         message::Message::CompensationMsg {
             payments: _
         } => {
-            //println!("Inside here");
             let wrapped_channel_pk = PublickeyOwner::TransactingNode(channel_pk.clone());
-            println!("CHANNEL_PK: {:?}", wrapped_channel_pk);
             if valid_pks.contains(&wrapped_channel_pk) {
                 return Ok((true, None));
             }
         }
     }
-    //println!("Unfort here");
     return Ok((false, None));
 }
 
@@ -177,7 +171,6 @@ pub fn verify_witness_sig(
                 org_cert: org_cert.clone(),
                 timeout,
             };
-            //println!("IMPORTANT: {:?}", pre_sig);
 
             let pre_sig = serde_json::to_string(&pre_sig).unwrap();
 

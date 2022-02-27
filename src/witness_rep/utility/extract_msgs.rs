@@ -60,7 +60,6 @@ pub fn extract_msg(
                 } => {
                     // decode the message and check if it's a tx_msg
                     let mut pay = String::from_utf8(public_payload.0.to_vec()).unwrap();
-                    println!("{}", pay);
                     let run = &pay[0..1].to_string();
                     let run_i = run.parse::<usize>().unwrap();
 
@@ -72,16 +71,12 @@ pub fn extract_msg(
 
                     // first 16 chars = {"TransactionMsg
                     let substr = &pay[0..16];
-                    println!("Here0");
-                    println!("{}", substr);
                     if substr == "{\"TransactionMsg" {
                         messages.insert(run_i, new_vec.clone());
-                        println!("Here1");
                     }
 
                     let pubk = MethodData::new_multibase(pk);
                     if let MethodData::PublicKeyMultibase(mbpub) = pubk {
-                        println!("Here2");
                         let mut branch = messages.remove(&run_i).unwrap();
                         branch.push((pay, mbpub));
                         messages.insert(run_i, branch);

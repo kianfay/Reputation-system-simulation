@@ -1,0 +1,15 @@
+zD7GeYwjo3q8kyHtba4MMdT4opmXHhyYb9cZQmnaUP3Ag: 0.75
+zAjzyyPYXeUqu8b8nD1uTfcXeRy21MjCo1dDUktNMJwoe: 0.5
+z5gSK7Y7aidHedfzgQeR3Hjm93BpchVie4uJ6bNSGgW4u: 0.4
+zEwEkXyHR1RXQM5jioTuER7gQimYeKEJKYX5bKRYqRXau: 0.7
+z5VyeJB326Afzk7d2anKgSnac7oKttiLe9nsfRCLccNgR: 0.6
+z66eYDENvHaHz4DjQYKtUoN6RSVXiEyL9WMy8gzfY6ofH: 0.8
+z3mjzEviimrqr4qKL7zhDBUNTKGAHRrYHzEr3pcf68CGe: 0.9
+zBfy7WuSz2Tn5NQpmN8MrdWMpyLQw7c7ffK4TKtjhZhbj: 0.7
+zGnXEcFkRQ6C7pWByzx6sTyhb8XZc3uXuL2hagH2Vjvkw: 0.3
+z7SMfg5fADH2breZkvMEhMo5bcK5e8zBPnstaZZ6EGgvs: 0.6
+z8MxdHFL4Lnr7VeY7bqyKFPGA2iTnM3y2gxxyNXj31xU5: 0.5
+zDtvdKCNih13qr2TtCwq8jZ2g4S8gPDr5rcY5HrgUbwyk: 0.7
+zku7dKGezNyo9YLP2NQag2jZsbfYgFrvHPQppBXVKceL: 0.4
+zFDxQ2EuYN2MLTxtdT53amUii3BUwV4k45iDjMVoiDes7: 0.5
+z512hdxc7DUP7DHqUm7uGVMjFhyg5e8JQudwczvpo52dH: 0.8

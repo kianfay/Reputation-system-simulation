@@ -446,6 +446,5 @@ pub async fn transact(
 pub fn workaround_channel_bug(run: usize, tx: String) -> String {
     let mut st = format!("{}", run);
     st.push_str(&tx);
-    println!("Checking if the workaround works: {}", st);
     return st;
 }

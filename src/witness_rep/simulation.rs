@@ -34,6 +34,7 @@ use std::collections::HashMap;
 use std::convert::TryInto;
 use std::iter::FromIterator;
 use std::fs;
+use chrono::prelude::*;
 
 pub const ALPH9: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ9";
 pub const DEFAULT_DURATION: u32 = 60*60*24*365; // 1 year
@@ -73,6 +74,10 @@ pub async fn simulation(
 
     let mut rand_gen = rand::thread_rng();
 
+    let time: DateTime<Utc> = Utc::now();
+    let folder_name = format!("./runs/Emmulation run {:?}", time);
+    println!("{}", folder_name);
+    fs::create_dir(&folder_name)?;
 
     //--------------------------------------------------------------
     //--------------------------------------------------------------
@@ -153,6 +158,7 @@ pub async fn simulation(
                                             .collect();
 
     // create channel subscriber instances
+    let mut output: String = String::new();
     let mut participants: &mut Vec<ParticipantIdentity> = &mut Vec::new();
     for i in 0..sc.num_participants{
         let name = format!("Participant {}", i);
@@ -167,14 +173,20 @@ pub async fn simulation(
             id_info: IdInfo {
                 did_key: part_did_secret[i],
                 reliability: sc.reliability[i],
-                org_cert: generate_sigs::generate_org_cert(part_did_pk, org_kp, DEFAULT_DURATION)?
+                org_cert: generate_sigs::generate_org_cert(part_did_pk.clone(), org_kp, DEFAULT_DURATION)?
             },
             reliability_map: reliability_map,
             reliability_threshold: sc.reliability_threshold[i],
             default_reliability: sc.default_reliability[i]
         };
         participants.push(id);
+
+        let part_entry = format!("{}: {}\n", part_did_pk, sc.reliability[i]);
+        output.push_str(&part_entry);
     }
+
+    let file_name = format!("{}/start_reliability.txt", &folder_name);
+    fs::write(file_name, output).expect("Unable to write file");
     
     //--------------------------------------------------------------
     // RUN SIMULATION
@@ -222,7 +234,8 @@ pub async fn simulation(
             &sc.node_url,
             &format!("output_{}", i),
             &mut rand_gen,
-            i
+            i,
+            folder_name.clone()
         ).await?;
 
         participants = reset_clients(participants, client.clone())?;
@@ -236,7 +249,8 @@ pub async fn simulation(
         output.push_str(&pk);
         output.push_str(&map);
     }
-    fs::write("reliability_maps.txt", output).expect("Unable to write file");
+    let file_name = format!("{}/reliability_maps.txt", &folder_name);
+    fs::write(file_name, output).expect("Unable to write file");
     
     return Ok(());
 }
@@ -252,7 +266,8 @@ pub async fn simulation_iteration(
     node_url: &str,
     output_name: &str,
     rand_gen: &mut rand::prelude::ThreadRng,
-    run: usize
+    run: usize,
+    folder_name: String
 ) -> Result<()> {
 
     //--------------------------------------------------------------
@@ -271,7 +286,7 @@ pub async fn simulation_iteration(
     // get orgs' pubkey and find the org with that pubkey
     let init_tn_org_pk = &transacting_clients[0].id_info.org_cert.org_pubkey;
     let org_index = get_index_org_with_pubkey(&organizations, init_tn_org_pk);
-    println!("Run under organization {}\n", organizations[org_index].identity.id_info.org_cert.client_pubkey);
+    println!("\nRun under organization {}\n", organizations[org_index].identity.id_info.org_cert.client_pubkey);
 
 
     //--------------------------------------------------------------
@@ -292,7 +307,7 @@ pub async fn simulation_iteration(
         &mut witness_clients,
         &mut organizations[org_index],
         lazy_method,
-        run
+        run,
     ).await?;
 
     // put the particpants back into the original array
@@ -325,7 +340,8 @@ pub async fn simulation_iteration(
         output.push_str(&msg);
         output.push_str(&pk);
     }
-    fs::write(output_name, output).expect("Unable to write file");
+    let file_name = format!("{}/{}", &folder_name, &output_name);
+    fs::write(file_name, output).expect("Unable to write file");
 
     //--------------------------------------------------------------
     // ALL PARTICIPANTS NOW UPDATE THEIR RELIABILITY SCORES BY
@@ -348,8 +364,8 @@ pub async fn simulation_iteration(
         part.update_reliability(tn_verdicts.clone());
         part.update_reliability(wn_verdicts.clone());
 
-        println!("tn_verdicts: {:?}", tn_verdicts);
-        println!("wn_verdicts: {:?}\n", wn_verdicts);
+        //println!("tn_verdicts: {:?}", tn_verdicts);
+        //println!("wn_verdicts: {:?}\n", wn_verdicts);
     }
 
     return Ok(());
@@ -421,9 +437,7 @@ pub fn generate_trans_and_witnesses(
         for witness in tn_witnesses_lists[i].clone(){
             set_of_witnesses.insert(witness);
         }
-        println!("---- DEBUG - Current list of to be intersected: {:?}", set_of_witnesses);
         main_set_of_witnesses = main_set_of_witnesses.intersection(&set_of_witnesses).cloned().collect();
-        println!("---- DEBUG - Current list of witness indices: {:?}", main_set_of_witnesses);
     }
 
     println!("-- Final list of witness indices: {:?}", main_set_of_witnesses);
