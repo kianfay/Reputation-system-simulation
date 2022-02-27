@@ -3,7 +3,8 @@ use crate::witness_rep::{
         generate_sigs, 
         participant::{
             ParticipantIdentity, OrganizationIdentity, IdInfo, get_public_keys
-        }
+        },
+        transaction::{extract_from_ids, get_honest_nodes, lazy_outcome, LazyMethod}
     },
 };
 
@@ -38,106 +39,16 @@ use identity::{
 use rand::Rng;
 use core::str::FromStr;
 
-#[derive(Clone, Debug)]
-pub enum LazyMethod {
-    Constant(bool),
-    Random,
-}
-
-//pub type OrganizationIdentity = Identity<Author<Client>>;
-
-pub fn extract_from_id(
-    id: &mut ParticipantIdentity
-) -> Result<(&mut Subscriber<Client>, KeyPair, f32, organization_cert::OrgCert)> {
-    match &id.id_info {
-        IdInfo { 
-            did_key,
-            reliability,
-            org_cert
-        } => {
-            let did_keypair = KeyPair::try_from_ed25519_bytes(did_key)?;
-            return Ok((&mut id.channel_client, did_keypair,reliability.clone(), org_cert.clone()));
-        }
-    }
-}
-
-pub fn extract_from_ids(
-    ids: &mut Vec<ParticipantIdentity>
-) -> Result<(Vec<&mut Subscriber<Client>>, Vec<KeyPair>, Vec<f32>, Vec<organization_cert::OrgCert>)> {
-    let mut subs: Vec<&mut Subscriber<Client>>  = Vec::new();
-    let mut kps : Vec<KeyPair>                  = Vec::new();
-    let mut rels: Vec<f32>                      = Vec::new();
-    let mut orgs: Vec<organization_cert::OrgCert>      = Vec::new();
-
-    for id in ids {
-        let (sub, kp, rel, org) = extract_from_id(id)?;
-        subs.push(sub);
-        kps.push(kp);
-        rels.push(rel);
-        orgs.push(org);
-    }
-    return Ok((subs, kps,rels,orgs));
-}
-
-pub async fn sync_all(subs: &mut Vec<&mut Subscriber<Client>>) -> Result<()> {
-    for sub in subs {
-        sub.sync_state().await?;
-    }
-    return Ok(());
-}
-
-/// The offset parameter is to allow for a node not to be targeted to be made dishonest. 
-/// Situations such as the inititation node never acting dishonest require this.
-pub fn get_honest_nodes(participants_reliablity: Vec<f32>, offset: usize) -> Vec<bool>{
-    let mut honest_nodes: Vec<bool> = vec![true; participants_reliablity.len()];
-
-    // for all but the initiating node, who for now we assume to be always acting as honest
-    // because they are paying for everything to go smoothly
-    for i in offset..participants_reliablity.len() {
-
-        // randomly assert if they are acting honest based on their reliability
-        let rand: f32 = rand::thread_rng().gen();
-        println!("-- Trying participant {}. Rand={}", i, rand);
-        let acting_honest: bool = participants_reliablity[i] > rand;
-        if !acting_honest {
-            honest_nodes[i] = false;
-            println!("---- Participant {} set to dishonest", i);
-        } else {
-            println!("---- Participant {} set to honest", i);
-        }
-    }
-    println!("");
-
-    return honest_nodes;
-}
-
-pub fn lazy_outcome(lazy_method: &LazyMethod) -> bool {
-    return match lazy_method {
-        LazyMethod::Constant(output) => output.clone(),
-        LazyMethod::Random => {
-            let rand: f32 = rand::thread_rng().gen();
-            println!("-- Trying lazy outcome. Rand={}", rand);
-            if rand > 0.5 {
-                true
-            } else {
-                false
-            }
-        }
-    }
-}
-
-
-pub async fn transact(
+pub async fn quick_transact(
     contract: Contract,
     transacting_ids: &mut Vec<ParticipantIdentity>,
     witness_ids: &mut Vec<ParticipantIdentity>,
     organization_id: &mut OrganizationIdentity,
     lazy_method: LazyMethod,
     run: usize
-) -> Result<(Vec<bool>, Vec<bool>)> {
+) -> Result<(Vec<bool>, Vec<bool>, Vec<tsg_message::MessageAndPubkey>)> {
     const DEFAULT_TIMEOUT : u32 = 60*2; // 2 mins
-    let ann_str = organization_id.ann_msg.as_ref().unwrap();
-    let announcement_link = Address::from_str(ann_str)?;
+    let mut messages: Vec<tsg_message::MessageAndPubkey> = Vec::new();
 
     //--------------------------------------------------------------
     //--------------------------------------------------------------
@@ -166,37 +77,6 @@ pub async fn transact(
     //--------------------------------------------------------------
 
 
-    // participants process the channel announcement
-    println!("Participants subscribe to channel if not already subscribed:");
-    let ann_address = Address::try_from_bytes(&announcement_link.to_bytes())?;
-    for i in 0..transacting_clients.len() {
-        transacting_clients[i].receive_announcement(&ann_address).await?;
-        let subscribe_msg = transacting_clients[i].send_subscribe(&ann_address).await?;
-        let sub_result = organization_id.identity.channel_client.receive_subscribe(&subscribe_msg).await;
-
-        // either the subscribe works and the program continues, or it doesnt because
-        // the author already has the tn as a subscriber and the program continues
-        match sub_result {
-            Ok(()) => {println!("-- Transacting node {} is now subscribed", i);},
-            Err(_) => {},
-        };
-    }
-    for i in 0..witness_clients.len() {
-        witness_clients[i].receive_announcement(&ann_address).await?;
-        let subscribe_msg = witness_clients[i].send_subscribe(&ann_address).await?;
-        let sub_result = organization_id.identity.channel_client.receive_subscribe(&subscribe_msg).await;
-
-        match sub_result {
-            Ok(()) => {println!("-- Witness {} is now subscribed", i);},
-            Err(_) => {},
-        };
-    }
-    println!("");
-
-    println!("Organization sends keyload message to these clients:");
-    let (keyload_a_link, _seq_a_link) =
-    organization_id.identity.channel_client.send_keyload_for_everyone(&announcement_link).await?;
-    println!("-- Keyload sent\n");
 
     //--------------------------------------------------------------
     // WITNESSES GENERATE SIGS
@@ -290,27 +170,11 @@ pub async fn transact(
     // INITIATING TN SENDS THE TRANSACTION MESSAGE
     //--------------------------------------------------------------
 
-    // serialise the tx
-    let mut tx_msg_str = serde_json::to_string(&transaction_msg)?; 
-    tx_msg_str = workaround_channel_bug(run, tx_msg_str);
-    let tx_message = vec![
-        tx_msg_str
-    ];
-    println!("-- TransactionMessage serialized\n");
-
-
-    // TN_A sends the transaction
-    println!("Initiating transacting node sends TransactionMessage:");
-    let mut prev_msg_link = keyload_a_link;
-    sync_all(&mut transacting_clients).await?;
-    sync_all(&mut witness_clients).await?;
-    let (msg_link, _) = transacting_clients[0].send_signed_packet(
-        &prev_msg_link,
-        &Bytes(tx_message[0].as_bytes().to_vec()),
-        &Bytes::default(),
-    ).await?;
-    println!("-- TransactionMessage sent. ID: {}, tangle index: {:#}\n", msg_link, msg_link.to_msg_index());
-    prev_msg_link = msg_link;
+    let msg = tsg_message::MessageAndPubkey {
+        message: transaction_msg,
+        sender_did: transacting_org_certs[0].client_pubkey.clone()
+    };
+    messages.push(msg);
 
     //--------------------------------------------------------------
     // THE EVENT IN QUESTION ON THE CONTRACT PLAYS OUT
@@ -364,23 +228,12 @@ pub async fn transact(
         let wn_statement = message::Message::WitnessStatement {
             outcome: outcomes[i].clone()
         };
-        let mut wn_statement_string = serde_json::to_string(&wn_statement)?;
 
-        wn_statement_string = workaround_channel_bug(run, wn_statement_string);
-        let witness_message = vec![
-            wn_statement_string
-        ];
-
-        // WN sends their witness statement
-        sync_all(&mut transacting_clients).await?;
-        sync_all(&mut witness_clients).await?;
-        let (msg_link, _) = witness_clients[i].send_signed_packet(
-            &prev_msg_link,
-            &Bytes(witness_message[0].as_bytes().to_vec()),
-            &Bytes::default(),
-        ).await?;
-        println!("-- Witness {} sent statement: ID: {}, tangle index: {:#}", i, msg_link, msg_link.to_msg_index());
-        prev_msg_link = msg_link;
+        let msg = tsg_message::MessageAndPubkey {
+            message: wn_statement,
+            sender_did: witness_ids[i].id_info.org_cert.client_pubkey.clone()
+        };
+        messages.push(msg);
     }
     println!("");
 
@@ -405,47 +258,14 @@ pub async fn transact(
         let compensation_msg = message::Message::CompensationMsg {
             payments: payments_tn_a
         };
-        let mut compensation_msg_str = serde_json::to_string(&compensation_msg)?;
 
-        compensation_msg_str = workaround_channel_bug(run, compensation_msg_str);
-        let compensation_tx = vec![
-            compensation_msg_str
-        ];
-
-        // TN sends the compensation transaction
-        sync_all(&mut transacting_clients).await?;
-        sync_all(&mut witness_clients).await?;
-        let (msg_link, _) = transacting_clients[i].send_signed_packet(
-            &prev_msg_link,
-            &Bytes(compensation_tx[0].as_bytes().to_vec()),
-            &Bytes::default(),
-        ).await?;
-        println!("-- Transacting node {} sent compensation: ID: {}, tangle index: {:#}", i, msg_link, msg_link.to_msg_index());
-        prev_msg_link = msg_link;
+        let msg = tsg_message::MessageAndPubkey {
+            message: compensation_msg,
+            sender_did: transacting_ids[i].id_info.org_cert.client_pubkey.clone()
+        };
+        messages.push(msg);
     }
     println!("");
-
-    //--------------------------------------------------------------
-    // THE PARTICIPANTS UNREGISTER SO THAT THEY CAN SUB TO OTHER CHANNELS
-    //--------------------------------------------------------------
-
-    println!("Participants unregister from channel:");
-    for i in 0..transacting_clients.len() {
-        transacting_clients[i].reset_state()?;
-        transacting_clients[i].unregister();
-    }
-    for i in 0..witness_clients.len() {
-
-        witness_clients[i].reset_state()?;
-        witness_clients[i].unregister();
-    }
-    println!("-- All participants unregistered");
     
-    return Ok((honest_tranascting_ids, honest_witness_ids));
-}
-
-pub fn workaround_channel_bug(run: usize, tx: String) -> String {
-    let mut st = format!("{}", run);
-    st.push_str(&tx);
-    return st;
+    return Ok((honest_tranascting_ids, honest_witness_ids, messages));
 }

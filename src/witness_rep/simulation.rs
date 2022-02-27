@@ -412,46 +412,48 @@ pub fn generate_trans_and_witnesses(
     let mut tn_witnesses_lists: Vec<Vec<usize>> = Vec::new();
 
     println!("Selecting participants to be transacting nodes and witnesses:");
-    for i in 0..transacting_clients.len(){
-        println!("-- Transacting node {} is finding witnesses:", i);
-        let mut tn_witnesses: Vec<usize> = Vec::new();
+    let mut main_set_of_witnesses: BTreeSet<usize> = BTreeSet::new();
+    loop {
+        for i in 0..transacting_clients.len(){
+            println!("-- Transacting node {} is finding witnesses:", i);
+            let mut tn_witnesses: Vec<usize> = Vec::new();
 
-        for j in 0..participants.len(){
-            let rand: f32 = rand_gen.gen();
-            println!("---- Trying participant {}. Rand={}. Avg proximity={}", j, rand, average_proximity);
-            if average_proximity > rand {
-                println!("---- Checking participant {}'s reliability", j);
-                let potential_wn_pk = participants[j].id_info.org_cert.client_pubkey.clone();
-                if transacting_clients[i].check_participant(&potential_wn_pk){
-                    tn_witnesses.push(j);
-                    println!("------ Participant {} added", j);
+            for j in 0..participants.len(){
+                let rand: f32 = rand_gen.gen();
+                println!("---- Trying participant {}. Rand={}. Avg proximity={}", j, rand, average_proximity);
+                if average_proximity > rand {
+                    println!("---- Checking participant {}'s reliability", j);
+                    let potential_wn_pk = participants[j].id_info.org_cert.client_pubkey.clone();
+                    if transacting_clients[i].check_participant(&potential_wn_pk){
+                        tn_witnesses.push(j);
+                        println!("------ Participant {} added", j);
+                    }
                 }
             }
+
+            println!("---- Found witnesses at indices: {:?}\n", tn_witnesses);
+            tn_witnesses_lists.push(tn_witnesses);
         }
 
-        println!("---- Found witnesses at indices: {:?}\n", tn_witnesses);
-        tn_witnesses_lists.push(tn_witnesses);
-    }
-
-    // The transacting participants combine their witnesses, and check if there are enough.
-    // Using BTreeSet because it is ordered
-    let mut main_set_of_witnesses: BTreeSet<usize> = BTreeSet::new();
-    for witness in tn_witnesses_lists[1].clone(){
-        main_set_of_witnesses.insert(witness);
-    }
-
-    for i in 0..tn_witnesses_lists.len() {
-        let mut set_of_witnesses: BTreeSet<usize> = BTreeSet::new();
-        for witness in tn_witnesses_lists[i].clone(){
-            set_of_witnesses.insert(witness);
+        // The transacting participants combine their witnesses, and check if there are enough.
+        // Using BTreeSet because it is ordered
+        for witness in tn_witnesses_lists[1].clone(){
+            main_set_of_witnesses.insert(witness);
         }
-        main_set_of_witnesses = main_set_of_witnesses.intersection(&set_of_witnesses).cloned().collect();
-    }
 
-    println!("-- Final list of witness indices: {:?}", main_set_of_witnesses);
+        for i in 0..tn_witnesses_lists.len() {
+            let mut set_of_witnesses: BTreeSet<usize> = BTreeSet::new();
+            for witness in tn_witnesses_lists[i].clone(){
+                set_of_witnesses.insert(witness);
+            }
+            main_set_of_witnesses = main_set_of_witnesses.intersection(&set_of_witnesses).cloned().collect();
+        }
 
-    if main_set_of_witnesses.len() < witness_floor {
-        panic!("Not enough witnesses were generated.")
+        println!("-- Final list of witness indices: {:?}", main_set_of_witnesses);
+
+        if main_set_of_witnesses.len() >= witness_floor {
+            break;
+        }
     }
 
     // convert indices into objects (as it is ordered, we can account for

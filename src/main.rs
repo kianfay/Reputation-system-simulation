@@ -18,7 +18,7 @@ async fn main() -> Result<()> {
         organizations: vec![0,0,1,1,2,2,1,1,0,1,0,2,2,1,0]
     };
 
-    witness_rep::simulation::simulation(sc).await?;
+    witness_rep::quick_simulation::quick_simulation(sc).await?;
 
 /*     let ann = "10a54dd01a48799c8def58b315a85b2aa62ccd3ca443c75350234054d11230160000000000000000:d5227ec97cc8597a471b9478";
     let seed = "Participant 0";

@@ -12,3 +12,5 @@ Cargo.lock
 simulation_results/
 
 output*
+
+runs/*
