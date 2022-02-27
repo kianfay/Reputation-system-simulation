@@ -10,21 +10,24 @@ use crypto::signatures::ed25519;
 
 
 pub type Key = [u8; 32];
+pub enum RunMode {Testing, Deploying}
 
 // returns a tuple of the Account and the Stronghold file name
 // in a practical setting, we would return the url and need to fetch it from the tangle
-pub async fn create_n_dids(n: usize) -> Result<Vec<(IotaDocument,(KeyPair,(Key,Key)),Receipt)>> {
+pub async fn create_n_dids(n: usize, run_mode: RunMode) -> Result<Vec<(Option<IotaDocument>,(KeyPair,(Key,Key)),Option<Receipt>)>> {
     let mut did_array = Vec::new();
     for _ in 0..n {
-        let did_info = create_and_upload_did().await?;
+        let did_info = create_and_upload_did(&run_mode).await?;
         did_array.push(did_info);
     }
     return Ok(did_array);
 }
 
 // uploads the did for this user and returns the Account object
-async fn create_and_upload_did() -> Result<(IotaDocument,(KeyPair,(Key,Key)),Receipt)> {
-     let network_name = "dev";
+async fn create_and_upload_did(
+    run_mode: &RunMode
+) -> Result<(Option<IotaDocument>,(KeyPair,(Key,Key)),Option<Receipt>)> {
+    let network_name = "dev";
     let network = Network::try_from_name(network_name)?;
 
     // hardcoded as this fn will only ever be used on the private tangle
@@ -40,30 +43,34 @@ async fn create_and_upload_did() -> Result<(IotaDocument,(KeyPair,(Key,Key)),Rec
     let client_map = ClientMap::from_client(client);
 
     // Generate a new Ed25519 public/private key pair.
-    let (keypair, private_key) = gen_iota_keypair();
+    let (keypair, pub_and_sec) = gen_iota_keypair();
 
-    // Create a DID Document (an identity) from the generated key pair.
-    let mut document: IotaDocument = IotaDocument::new(&keypair)?;
+    if let RunMode::Deploying = run_mode {
+        // Create a DID Document (an identity) from the generated key pair.
+        let mut document: IotaDocument = IotaDocument::new(&keypair)?;
 
-    // Sign the DID Document with the default signing method.
-    document.sign_self(keypair.private(), &document.default_signing_method()?.id())?;
+        // Sign the DID Document with the default signing method.
+        document.sign_self(keypair.private(), &document.default_signing_method()?.id())?;
 
-    println!("DID Document JSON > {:#}", document);
+        println!("DID Document JSON > {:#}", document);
 
-    // Publish the DID Document to the Tangle.
-    let receipt: Receipt = client_map.publish_document(&document).await?;
+        // Publish the DID Document to the Tangle.
+        let receipt: Receipt = client_map.publish_document(&document).await?;
 
-    println!("Publish Receipt > {:#?}", receipt);
+        println!("Publish Receipt > {:#?}", receipt);
 
-    // Display the web explorer url that shows the published message.
-    let explorer: &ExplorerUrl = ExplorerUrl::mainnet();
-    println!(
-        "DID Document Transaction > {}",
-        explorer.message_url(receipt.message_id())?
-    );
-    println!("Explore the DID Document > {}", explorer.resolver_url(document.id())?);
+        // Display the web explorer url that shows the published message.
+        let explorer: &ExplorerUrl = ExplorerUrl::mainnet();
+        println!(
+            "DID Document Transaction > {}",
+            explorer.message_url(receipt.message_id())?
+        );
+        println!("Explore the DID Document > {}", explorer.resolver_url(document.id())?);
+        
+        return Ok((Some(document), (keypair, pub_and_sec), Some(receipt)));
+    }
 
-    Ok((document, (keypair, private_key), receipt))
+    return Ok((None, (keypair, pub_and_sec), None));
 }
 
 // returns a keypair and the associated private key

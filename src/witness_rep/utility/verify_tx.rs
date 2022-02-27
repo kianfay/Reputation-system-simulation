@@ -1,26 +1,26 @@
 use crate::witness_rep::{
-    utility::extract_msgs,
-    messages::{
-        message,
-        signatures,
-        transaction_msgs::{
-            TransactionMsg, ArrayOfTxSignitures, ArrayOfWnSignitures
+    utility::{extract_msgs}
+};
+
+use trust_score_generator::trust_score_generators::{
+    data_types::{
+        messages::{
+            tx_messages as message,
+            signatures::{
+                witness_sig, transacting_sig
+            },
         }
-    }
+    },
 };
 
 use iota_streams::{
-    app::transport::tangle::{client::Client, },
-    app_channels::api::tangle::{
-        Address, Subscriber
-    },
+    app_channels::api::tangle::UnwrappedMessage,
     core::{println, Result},
 };
 use identity::{
     crypto::{Ed25519, Verify},
     did::MethodData,
 };
-use core::str::FromStr;
 
 #[derive(Clone,PartialEq,Debug)]
 pub enum PublickeyOwner {
@@ -28,26 +28,28 @@ pub enum PublickeyOwner {
     Witness(String)
 }
 
-// returns whether the transaction msgs were valid, the messages, and the channel pks which signed the msgs
-pub async fn verify_txs(node_url: &str, ann_msg: String, seed: &str) -> Result<(bool, Vec<String>, Vec<String>)> {
+pub enum WhichBranch {
+    /// Verifies a specific branch
+    OneBranch(usize),
+    /// Verifies all branches including and after a specific branch
+    FromBranch(usize),
+    /// Verifies only the final branch
+    LastBranch
+}
+
+/// Returns whether the transaction msgs were valid, the messages, and the channel pks which signed the msgs
+pub async fn verify_txs(
+    msgs: Vec<UnwrappedMessage>,
+    branches: WhichBranch
+) -> Result<(bool, Vec<String>, Vec<String>)> {
     
-    // build another client to read the tangle with (the seed must be the same as 
-    // one of the subscribers in the channel, which is why the author's seed is needed)
-    let client = Client::new_from_url(node_url);
-    let mut reader = Subscriber::new(seed, client.clone());
-
-    // process the address string
-    let ann_address = Address::from_str(&ann_msg)?;
-    reader.receive_announcement(&ann_address).await?;
-
-    // fetch messages from address, and extract their payloads
-    let retrieved = reader.fetch_next_msgs().await?;
-    //println!("\nAuthor found {} messages", retrieved.len());
-    let msgs = extract_msgs::extract_msg(retrieved);
+    let msgs = extract_msgs::extract_msg(msgs, branches);
+/*     let msgs: Vec<(String, String)> = branches_msgs.into_iter()
+        .flatten()
+        .collect(); */
 
     let only_msgs = msgs.iter().map(|(msg, _)| msg.clone()).collect();
     let only_pks = msgs.iter().map(|(_, pk)| pk.clone()).collect();
-    //println!("{:?}", msgs);
 
     // parse the string into the TransactionMsg/WitnessStatement/CompensationMsg format and check if valid
     let mut valid_pks: Vec<PublickeyOwner> = Vec::new();
@@ -75,16 +77,15 @@ pub async fn verify_txs(node_url: &str, ann_msg: String, seed: &str) -> Result<(
     return Ok((true, only_msgs, only_pks));
 }
 
-// Accepts a tuple of a message content and the sender's channel public key.
-// If it is a valid TransactionMessage, it will return true and a valid channel public keys and it's ownership
+/// Accepts a tuple of a message content and the sender's channel public key.
+/// If it is a valid TransactionMessage, it will return true and a valid channel public keys and it's ownership
 pub fn verify_msg( (tx_msg,channel_pk) : (message::Message, &String), mut valid_pks: Vec<PublickeyOwner>) -> Result<(bool, Option<Vec<PublickeyOwner>>)> {
-    //println!("here");
     match tx_msg {
         message::Message::TransactionMsg {
             contract, witnesses, wit_node_sigs, tx_client_sigs
         } => {
-            let tx_msg = TransactionMsg {contract, witnesses, wit_node_sigs, tx_client_sigs};
-            let (ArrayOfWnSignitures(wit_sigs), ArrayOfTxSignitures(tn_sigs)) = get_sigs(tx_msg);
+            let tx_msg = message::Message::TransactionMsg {contract, witnesses, wit_node_sigs, tx_client_sigs};
+            let (message::ArrayOfWnSignitures(wit_sigs), message::ArrayOfTxSignitures(tn_sigs)) = get_sigs(tx_msg);
             
             let mut witness_sigs: Vec<Vec<u8>> = Vec::new();
             // Check that each witness sig is valid, meaning it was sent by the owner of the DID,
@@ -119,9 +120,7 @@ pub fn verify_msg( (tx_msg,channel_pk) : (message::Message, &String), mut valid_
         message::Message::WitnessStatement {
             outcome: _,
         } => {
-            //println!("Inside here");
             let wrapped_channel_pk = PublickeyOwner::Witness(channel_pk.clone());
-            //println!("{:?}", wrapped_channel_pk);
             if valid_pks.contains(&wrapped_channel_pk) {
                 return Ok((true, None));
             }
@@ -129,46 +128,49 @@ pub fn verify_msg( (tx_msg,channel_pk) : (message::Message, &String), mut valid_
         message::Message::CompensationMsg {
             payments: _
         } => {
-            //println!("Inside here");
             let wrapped_channel_pk = PublickeyOwner::TransactingNode(channel_pk.clone());
-            //println!("{:?}", wrapped_channel_pk);
             if valid_pks.contains(&wrapped_channel_pk) {
                 return Ok((true, None));
             }
         }
     }
-    //println!("Unfort here");
     return Ok((false, None));
 }
 
-pub fn get_sigs(tx: TransactionMsg) -> (ArrayOfWnSignitures,ArrayOfTxSignitures) {
+pub fn get_sigs(
+    tx: message::Message
+) -> (message::ArrayOfWnSignitures,message::ArrayOfTxSignitures) {
     match tx {
-        TransactionMsg {
+        message::Message::TransactionMsg {
             contract: _,
             witnesses: _,
             wit_node_sigs,
             tx_client_sigs,
-        } => return (wit_node_sigs, tx_client_sigs)
+        } => return (wit_node_sigs, tx_client_sigs),
+        _ => panic!("Can only get signatures from a TransactionMsg message")
     };
 }
 
-// returns a bool indicating if valid, and a string of the channel pubkey of this sub,
-// and the sig bytes
-pub fn verify_witness_sig(sig: signatures::WitnessSig) -> Result<(bool, String, Vec<u8>)>{
+/// Returns a bool indicating if valid, and a string of the channel pubkey of this sub,
+/// and the sig bytes
+pub fn verify_witness_sig(
+    sig: witness_sig::WitnessSig
+) -> Result<(bool, String, Vec<u8>)>{
     match sig {
-        signatures::WitnessSig {
+        witness_sig::WitnessSig {
             contract,
             signer_channel_pubkey,
+            org_cert,
             timeout,
             signer_did_pubkey,
             signature,
         } => {
-            let pre_sig = signatures::WitnessPreSig {
+            let pre_sig = witness_sig::WitnessPreSig {
                 contract,
                 signer_channel_pubkey: signer_channel_pubkey.clone(),
+                org_cert: org_cert.clone(),
                 timeout,
             };
-            //println!("IMPORTANT: {:?}", pre_sig);
 
             let pre_sig = serde_json::to_string(&pre_sig).unwrap();
 
@@ -185,13 +187,14 @@ pub fn verify_witness_sig(sig: signatures::WitnessSig) -> Result<(bool, String, 
 }
 
 // returns a bool indicating if valid, and a string of the channel pubkey of this sub
-pub fn verify_tx_sig(sig: signatures::TransactingSig, sorted_witness_sigs: Vec<Vec<u8>>) -> Result<(bool, String)>{
+pub fn verify_tx_sig(sig: transacting_sig::TransactingSig, sorted_witness_sigs: Vec<Vec<u8>>) -> Result<(bool, String)>{
     match sig {
-        signatures::TransactingSig {
+        transacting_sig::TransactingSig {
             contract,
             signer_channel_pubkey,
             witnesses,
             wit_node_sigs,
+            org_cert,
             timeout,
             signer_did_pubkey,
             signature,
@@ -208,11 +211,12 @@ pub fn verify_tx_sig(sig: signatures::TransactingSig, sorted_witness_sigs: Vec<V
             }
 
 
-            let pre_sig = signatures::TransactingPreSig {
+            let pre_sig = transacting_sig::TransactingPreSig {
                 contract,
                 signer_channel_pubkey: signer_channel_pubkey.clone(),
                 witnesses,
                 wit_node_sigs,
+                org_cert: org_cert.clone(),
                 timeout,
             };
 
