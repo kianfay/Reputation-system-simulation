@@ -8,14 +8,10 @@ use crate::witness_rep::{
             ParticipantIdentity, OrganizationIdentity,
             IdInfo, ReliabilityMap, Identity, get_index_org_with_pubkey}
     },
-    utility::{verify_tx, read_msgs, extract_msgs},
     simulation::{SimulationConfig, generate_trans_and_witnesses}
 };
 
-use trust_score_generator::trust_score_generators::{
-   trivial_tsg::tsg_organization,
-   utility::parse_messages
-};
+use trust_score_generator::trust_score_generators::trivial_tsg::tsg_organization;
 
 use iota_streams::{
     app::transport::tangle::client::Client,
@@ -30,21 +26,19 @@ use identity::{
 };
 
 use rand::Rng;
-use std::collections::BTreeSet;
 use std::collections::HashSet;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::iter::FromIterator;
 use std::fs;
 use chrono::prelude::*;
-use serde::{Deserialize, Serialize};
 
 pub const ALPH9: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ9";
 pub const DEFAULT_DURATION: u32 = 60*60*24*365; // 1 year
 
 pub async fn quick_simulation(
     sc: SimulationConfig
-) -> Result<()> {
+) -> Result<String> {
 
     if sc.reliability.len() != sc.num_participants {
         panic!("Number of elements in 'reliability' parameter must equal the num_participants!");
@@ -282,5 +276,5 @@ pub async fn quick_simulation(
     let file_name = format!("{}/reliability_maps.txt", &folder_name);
     fs::write(file_name, output).expect("Unable to write file");
 
-    return Ok(());
+    return Ok(folder_name);
 }
