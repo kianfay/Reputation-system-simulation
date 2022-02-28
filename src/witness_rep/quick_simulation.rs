@@ -184,6 +184,7 @@ pub async fn quick_simulation(
     println!("-- Lazy methods to be used: {:?}\n", lazy_methods);
 
     for i in 0..sc.runs {
+        println!("\n\n\n---------------------STARTING RUN {}---------------------", i);
         //--------------------------------------------------------------
         // GENERATE GROUPS OF TRANSACATING NODES AND WITNESSES
         //--------------------------------------------------------------

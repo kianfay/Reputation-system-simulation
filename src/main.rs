@@ -8,15 +8,14 @@ mod evaluating_rep;
 async fn main() -> Result<()> {
     let url = "http://0.0.0.0:14265";
     
-
     // Run the quick simulation
     let sc = witness_rep::simulation::SimulationConfig {
         node_url: String::from(url),
         num_participants: 15,
-        average_proximity: 0.7,
+        average_proximity: 0.5,
         witness_floor: 2,
-        runs: 4,
-        reliability: vec![0.75, 0.5, 0.4, 0.7, 0.6, 0.8, 0.9, 0.7, 0.3, 0.6, 0.5, 0.7, 0.4, 0.5, 0.8],
+        runs: 100,
+        reliability: vec![1.0, 1.0, 0.4, 0.7, 0.6, 0.8, 0.9, 0.7, 0.3, 0.6, 1.0, 0.7, 0.4, 0.5, 1.0],
         reliability_threshold: vec![0.1; 15],
         default_reliability: vec![0.5; 15],
         organizations: vec![0,0,1,1,2,2,1,1,0,1,0,2,2,1,0]
@@ -24,7 +23,6 @@ async fn main() -> Result<()> {
     let dir_name = witness_rep::quick_simulation::quick_simulation(sc).await?;
 
     // evaluate the results
-    let args: Vec<String> = env::args().collect();
     let rel_map = evaluating_rep::stats::read_reliabilities(dir_name, false)?;
     let mse = evaluating_rep::stats::run_avg_mean_squared_error(rel_map)?;
     println!("{}", mse);

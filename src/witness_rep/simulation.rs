@@ -409,11 +409,10 @@ pub fn generate_trans_and_witnesses(
     // Each iteration of the upper loop is one of the transacting nodes searching for
     // witnesses. We must work with indexes instead of actual objects to removing potential
     // witnesses from the list for transacting nodes of indices larger than 0
-    let mut tn_witnesses_lists: Vec<Vec<usize>> = Vec::new();
-
     println!("Selecting participants to be transacting nodes and witnesses:");
     let mut main_set_of_witnesses: BTreeSet<usize> = BTreeSet::new();
     loop {
+        let mut tn_witnesses_lists: Vec<Vec<usize>> = Vec::new();
         for i in 0..transacting_clients.len(){
             println!("-- Transacting node {} is finding witnesses:", i);
             let mut tn_witnesses: Vec<usize> = Vec::new();
@@ -437,11 +436,11 @@ pub fn generate_trans_and_witnesses(
 
         // The transacting participants combine their witnesses, and check if there are enough.
         // Using BTreeSet because it is ordered
-        for witness in tn_witnesses_lists[1].clone(){
+        for witness in tn_witnesses_lists[0].clone(){
             main_set_of_witnesses.insert(witness);
         }
 
-        for i in 0..tn_witnesses_lists.len() {
+        for i in 1..tn_witnesses_lists.len() {
             let mut set_of_witnesses: BTreeSet<usize> = BTreeSet::new();
             for witness in tn_witnesses_lists[i].clone(){
                 set_of_witnesses.insert(witness);
