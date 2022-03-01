@@ -1,6 +1,6 @@
 use anyhow::Result;
 use std::env;
-use std::ops::Range;
+use evaluating_rep::optimise::*;
 
 mod witness_rep;
 mod evaluating_rep;
@@ -9,19 +9,28 @@ mod evaluating_rep;
 async fn main() -> Result<()> {
     let url = "http://0.0.0.0:14265";
 
-    let mut sc = witness_rep::simulation::SimulationConfig {
+    let sc = witness_rep::simulation::SimulationConfig {
         node_url: String::from(url),
         num_participants: 15,
         average_proximity: 0.5,
         witness_floor: 2,
         runs: 30,
-        reliability: vec![1.0, 1.0, 0.4, 0.7, 0.6, 0.8, 0.9, 0.7, 0.3, 0.6, 1.0, 0.7, 0.4, 0.5, 1.0],
+        reliability: vec![0.8; 15],
         reliability_threshold: vec![0.1; 15],
         default_reliability: vec![0.5; 15],
         organizations: vec![0,0,0,0,0,1,1,1,1,1,2,2,2,2,2]
     };
-    let ind_var = evaluating_rep::optimise::IndependantVar::Reliability(40..100, 40, 10);
-    let optimal = evaluating_rep::optimise::find_optimal(&mut sc, ind_var, 1).await?;
+
+    let mut ind_var: IndependantVar<IndependantVarPart> = IndependantVar {
+        sc: sc,
+        independant_var: IndependantVarPart {
+            independant_var: IndependantVarPartHollow::DefaultReliability,
+            current_mean: 40,
+            current_std: 2,
+            range: 40..60
+        }
+    };
+    let optimal = find_optimal(&mut ind_var).await?;
     println!("{:?}", optimal);
 
     

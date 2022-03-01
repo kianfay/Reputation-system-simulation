@@ -162,7 +162,7 @@ pub fn get_index_org_with_pubkey(organizations: &Vec<OrganizationIdentity>, pk: 
 }
 
 
-#[test]
+/* #[test]
 pub fn test_reliability_map() {
     // create a default Identity
     let mut id: Identity<u8> = Identity {
@@ -190,4 +190,4 @@ pub fn test_reliability_map() {
     id.update_reliability(vec![(String::from("a"), 1.0)]);
     let a_score = id.calculate_score(id.reliability_map.get("a").unwrap());
     assert_eq!(a_score, 0.75);
-}
+} */

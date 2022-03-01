@@ -8,28 +8,75 @@ use anyhow::Result;
 use std::ops::Range;
 use rand::distributions::{Normal, Distribution};
 
-// The range parameters specify the range of the independant variable
-pub enum IndependantVar {
-    
-    // These represent independant variables which operate at the application level.
+/** The independant variable for application level variables.
+ *  Deals only with non vector fields in SimulationConfig.
+ */ 
+/// A enum too hold the variable
+#[derive(Clone, Debug)]
+pub enum IndependantVarAppHollow {
     NumParticipants(Range<usize>),
     AverageProximity(Range<f32>),
     WitnessFloor(Range<usize>),
     Runs(Range<usize>),
+}
+/// A wrapper allowing us to deal polymorphically with App and Part
+#[derive(Clone, Debug)]
+pub struct IndependantVarApp {
+    pub independant_var: IndependantVarAppHollow,
+}
 
-    // These represent independant variables which operate at the participant level (TODO)
-    /// Reliability(mean_range, cur_mean, std)
-    Reliability(Range<usize>, usize, usize),
+/** The independant variable for participant level variables.
+ *  Needs to be separate from IndependantVarPartHollow because
+ *  it relies on a variable (cur_mean) which is not present
+ *  in SimulationConfig
+ */
+/// A enum too hold the variable
+#[derive(Clone, Debug)]
+pub enum IndependantVarPartHollow {
+    /// Reliability(mean_range)
+    Reliability,
     ReliabilityThreshold,
     DefaultReliability
 }
+/// A struct allowing for us to track the non sc variables
+#[derive(Clone, Debug)]
+pub struct IndependantVarPart {
+    pub independant_var: IndependantVarPartHollow,
+    pub current_mean: usize,
+    pub current_std: usize,
+    pub range: Range<usize>
+}
 
-pub enum OptimalValue {
+/// The wrapper struct for the independant variable
+#[derive(Clone, Debug)]
+pub struct IndependantVar<C> {
+    pub sc: SimulationConfig,
+    pub independant_var: C
+}
+
+pub trait SCIterator {
+    fn next(&mut self) -> Option<SimulationConfig>;
+}
+
+impl SCIterator for IndependantVar<IndependantVarApp> {
+    fn next(&mut self) -> Option<SimulationConfig> {
+        return get_next_config_app(&mut self.sc, &mut self.independant_var, 1);
+    }
+}
+
+impl SCIterator for IndependantVar<IndependantVarPart> {
+    fn next(&mut self) -> Option<SimulationConfig> {
+        return get_next_config_part(&mut self.sc, &mut self.independant_var, 1);
+    }
+}
+
+
+/* pub enum OptimalValue {
     UniqueF32(f32),
     UniqueUSize(usize),
     VecF32(Vec<f32>),
     VecUSize(Vec<usize>)
-}
+} */
 
 /**
  * In the SimulationConfig struct:
@@ -46,20 +93,23 @@ pub enum OptimalValue {
     }
  * the fields marked ** are the ones which can be independant variables
  */
-pub async fn find_optimal(
-    sc: &mut SimulationConfig,
-    ind_var: IndependantVar,
-    increments: usize
-) -> Result<(usize, f32)> {
+pub async fn find_optimal<C>(
+    ind_var: &mut C,
+) -> Result<(usize, f32)> 
+where C: SCIterator
+{
     let mut results: Vec<(usize, f32)> = Vec::new();
-    loop {
-        let (in_range, next_val) = get_next_config(sc, &ind_var, increments);
-        if !in_range {break;}
+    for i in 0.. {
+        let next_sc = ind_var.next();
+        match next_sc {
+            None=> {break;},
+            _   => {}
+        };
 
-        let dir_name = quick_simulation(sc.clone()).await?;
+        let dir_name = quick_simulation(next_sc.unwrap().clone()).await?;
         let rel_map = read_reliabilities(dir_name, false)?;
         let mse = run_avg_mean_squared_error(rel_map)?;
-        results.push((next_val.unwrap(), mse));
+        results.push((i, mse));
     }
 
     println!("{:?}", &results);
@@ -75,42 +125,41 @@ pub async fn find_optimal(
 /// Updates the config to it's next state. Acts like an interator.
 /// AverageProximity is a usize for type correctness, and represents the percentage
 /// as a int in the range [0,100] instead of a float in the range [0,1]
-pub fn get_next_config(
+pub fn get_next_config_app(
     sc: &mut SimulationConfig,
-    ind_var: &IndependantVar,
+    ind_var: &mut IndependantVarApp,
     increments: usize
-) -> (bool, Option<usize>) {
+) -> Option<SimulationConfig> {
 
     let new_val: usize;
-    match ind_var {
-        IndependantVar::NumParticipants(range)  => 
+    match ind_var.clone().independant_var {
+        IndependantVarAppHollow::NumParticipants(range)  => 
             {
                 new_val = sc.num_participants + increments;
-                if !range.contains(&new_val) {return (false, None);}
+                if !range.contains(&new_val) {return None;}
                 sc.num_participants = new_val;
             },
-        IndependantVar::AverageProximity(range) => 
+        IndependantVarAppHollow::AverageProximity(range) => 
             {
                 let _new_val = sc.average_proximity + (increments as f32 / 100.0);
-                if !range.contains(&_new_val) {return (false, None);}
+                if !range.contains(&_new_val) {return None;}
                 sc.average_proximity = _new_val;
-                new_val = (_new_val * 100.0) as usize;
             },
-        IndependantVar::WitnessFloor(range)     => 
+        IndependantVarAppHollow::WitnessFloor(range)     => 
             {
                 new_val = sc.witness_floor + increments;
-                if !range.contains(&new_val) {return (false, None);}
+                if !range.contains(&new_val) {return None;}
                 sc.witness_floor = new_val;
             },
-        IndependantVar::Runs(range)             =>
+        IndependantVarAppHollow::Runs(range)             =>
             {
                 new_val = sc.runs + increments;
-                if !range.contains(&new_val) {return (false, None);}
+                if !range.contains(&new_val) {return None;}
                 sc.runs = new_val;
             },
-        IndependantVar::Reliability(mean_range, cur_mean, std)  =>
+/*         IndependantVar::Reliability(mean_range, cur_mean, std)  =>
             {
-                new_val = cur_mean + increments;
+                new_val = cur_mean.clone() + increments;
                 if !mean_range.contains(&new_val) {return (false, None);}
 
                 let _new_val = new_val as f64 / 100.0;
@@ -121,10 +170,94 @@ pub fn get_next_config(
                     .map(|x| x as f32)
                     .collect();
                 
+                    println!("{:?}", reliabilities);
+                
                 sc.reliability = reliabilities;
+
+                ind_var = &mut IndependantVar::Reliability(mean_range.clone(), new_val, std.clone());
             },
-        _ => return (false, None)
+        _ => return (false, None) */
+    }
+    return Some(sc.clone());
+}
+
+pub fn get_next_config_part(
+    sc: &mut SimulationConfig,
+    ind_var: &mut IndependantVarPart,
+    increments: usize
+) -> Option<SimulationConfig> {
+    // create updated mean
+    let new_mean = ind_var.current_mean + increments;
+    if !ind_var.range.contains(&new_mean) {return None}
+
+    // generate new noramlly distributed vector
+    let _new_mean = new_mean as f64 / 100.0;
+    let normal = Normal::new(_new_mean, (ind_var.current_std as f64) / 100.0);
+    let new_vec: Vec<f32> = normal
+        .sample_iter(&mut rand::thread_rng())
+        .take(sc.num_participants)
+        .map(|x| x as f32)
+        .collect();
+    //println!("{:?}", reliabilities);
+
+    // update the IndependantVarPart
+    ind_var.current_mean = new_mean;
+
+    // update the SimulationConfig
+    match ind_var.clone().independant_var {
+        IndependantVarPartHollow::Reliability  =>
+        {   
+            sc.reliability = new_vec;
+        },
+        IndependantVarPartHollow::ReliabilityThreshold  =>
+        {   
+            sc.reliability_threshold = new_vec;
+        },
+        IndependantVarPartHollow::DefaultReliability  =>
+        {
+            sc.default_reliability = new_vec;
+        },
+        _ => return None
     }
 
-    return (true, Some(new_val));
+    // return the current SimulationConfig
+    return Some(sc.clone());
+}
+
+#[test]
+pub fn test_sc_iterator() {
+    let sc = SimulationConfig {
+        node_url: String::from(""),
+        num_participants: 15,
+        average_proximity: 0.5,
+        witness_floor: 2,
+        runs: 30,
+        reliability: vec![1.0; 15],
+        reliability_threshold: vec![1.0; 15],
+        default_reliability: vec![1.0; 15],
+        organizations: vec![1; 15]
+    };
+    let mut ind_var: IndependantVar<IndependantVarPart> = IndependantVar {
+        sc: sc,
+        independant_var: IndependantVarPart {
+            independant_var: IndependantVarPartHollow::Reliability,
+            current_mean: 40,
+            current_std: 2,
+            range: 40..60
+        }
+    };
+
+    let mut rels: Vec<Vec<f32>> = Vec::new();
+    for _ in 0..19 {
+        //println!("SC: {:?}\n", ind_var.next().unwrap().reliability);
+        rels.push(ind_var.next().unwrap().reliability);
+    }
+    let avg_rels: Vec<f32> = rels.iter().map(|v| v.iter().sum()).collect();
+
+    // shallow test to see if the normal distribution is coming out right
+    let ordered =   (avg_rels[0] < avg_rels[5]) && 
+                    (avg_rels[5] < avg_rels[10]) && 
+                    (avg_rels[10] < avg_rels[15]);
+
+    assert_eq!(true, ordered);
 }

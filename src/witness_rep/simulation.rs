@@ -40,7 +40,7 @@ use serde::{Deserialize, Serialize};
 pub const ALPH9: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ9";
 pub const DEFAULT_DURATION: u32 = 60*60*24*365; // 1 year
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, Debug)]
 pub struct SimulationConfig {
     pub node_url: String,
     pub num_participants: usize,
