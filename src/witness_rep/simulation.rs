@@ -66,7 +66,7 @@ pub struct SimulationConfig {
 //      - organizations: an array assigning a organization to participants at the respective indices
 pub async fn simulation(
     sc: SimulationConfig
-) -> Result<()> {
+) -> Result<String> {
 
     if sc.reliability.len() != sc.num_participants {
         panic!("Number of elements in 'reliability' parameter must equal the num_participants!");
@@ -233,7 +233,7 @@ pub async fn simulation(
     for i in 0..sc.runs {
         println!("\n\n\n---------------------STARTING RUN {}---------------------", i);
         // run the iteration
-        simulation_iteration(
+        let ran = simulation_iteration(
             organizations,
             participants,
             sc.average_proximity,
@@ -245,6 +245,10 @@ pub async fn simulation(
             i,
             folder_name.clone()
         ).await?;
+
+        if !ran {
+            println!("FAILED TO RUN")
+        }
 
         participants = reset_clients(participants, client.clone())?;
     }
@@ -260,7 +264,7 @@ pub async fn simulation(
     let file_name = format!("{}/reliability_maps.txt", &folder_name);
     fs::write(file_name, output).expect("Unable to write file");
     
-    return Ok(());
+    return Ok(folder_name);
 }
 
 
@@ -276,16 +280,27 @@ pub async fn simulation_iteration(
     rand_gen: &mut rand::prelude::ThreadRng,
     run: usize,
     folder_name: String
-) -> Result<()> {
+) -> Result<bool> {
 
     //--------------------------------------------------------------
     // GENERATE GROUPS OF TRANSACATING NODES AND WITNESSES
     //--------------------------------------------------------------
 
-    let (mut transacting_clients, mut witness_clients) = generate_trans_and_witnesses(&mut participants,
+    let gen_op = generate_trans_and_witnesses(
+        &mut participants,
         average_proximity,
         witness_floor,
-        rand_gen)?;
+        rand_gen,
+        100,
+        true
+    )?;
+
+    let (mut transacting_clients, mut witness_clients) = match gen_op{
+        None => {
+            return Ok(false);
+        },
+        Some(x) => x
+    };
 
     //--------------------------------------------------------------
     // GET THE ORGANIZATION OF THE INITIATING TRANSACTING NODE [0]
@@ -376,16 +391,19 @@ pub async fn simulation_iteration(
         //println!("wn_verdicts: {:?}\n", wn_verdicts);
     }
 
-    return Ok(());
+    return Ok(true);
 }
 
-// Generates the transacting nodes and the witnesses for the next simulation
+// Generates the transacting nodes and the witnesses for the next simulation.
+// Will return None if no witnesses can be found after max_tries
 pub fn generate_trans_and_witnesses(
     participants: &mut Vec<ParticipantIdentity>,
     average_proximity: f32,
     witness_floor: usize,
-    rand_gen: &mut rand::prelude::ThreadRng
-) -> Result<(Vec<ParticipantIdentity>,Vec<ParticipantIdentity>)> {
+    rand_gen: &mut rand::prelude::ThreadRng,
+    max_tries: usize,
+    print: bool
+) -> Result<Option<(Vec<ParticipantIdentity>,Vec<ParticipantIdentity>)>> {
 
     let mut transacting_clients: Vec<ParticipantIdentity> = Vec::new();
     let mut witness_clients: Vec<ParticipantIdentity> = Vec::new();
@@ -409,28 +427,45 @@ pub fn generate_trans_and_witnesses(
     // Each iteration of the upper loop is one of the transacting nodes searching for
     // witnesses. We must work with indexes instead of actual objects to removing potential
     // witnesses from the list for transacting nodes of indices larger than 0
-    println!("Selecting participants to be transacting nodes and witnesses:");
+    if print{
+        println!("Selecting participants to be transacting nodes and witnesses:");
+    }
     let mut main_set_of_witnesses: BTreeSet<usize> = BTreeSet::new();
-    loop {
+    for i in 0.. {
+        if i >= max_tries {
+            participants.append(&mut transacting_clients);
+            return Ok(None);
+        }
+
         let mut tn_witnesses_lists: Vec<Vec<usize>> = Vec::new();
         for i in 0..transacting_clients.len(){
-            println!("-- Transacting node {} is finding witnesses:", i);
+            if print{
+                println!("-- Transacting node {} is finding witnesses:", i);
+            }
             let mut tn_witnesses: Vec<usize> = Vec::new();
 
             for j in 0..participants.len(){
                 let rand: f32 = rand_gen.gen();
-                println!("---- Trying participant {}. Rand={}. Avg proximity={}", j, rand, average_proximity);
+                if print{
+                    println!("---- Trying participant {}. Rand={}. Avg proximity={}", j, rand, average_proximity);
+                }
                 if average_proximity > rand {
-                    println!("---- Checking participant {}'s reliability", j);
+                    if print{
+                        println!("---- Checking participant {}'s reliability", j);
+                    }
                     let potential_wn_pk = participants[j].id_info.org_cert.client_pubkey.clone();
                     if transacting_clients[i].check_participant(&potential_wn_pk){
                         tn_witnesses.push(j);
-                        println!("------ Participant {} added", j);
+                        if print{
+                            println!("------ Participant {} added", j);
+                        }
                     }
                 }
             }
 
-            println!("---- Found witnesses at indices: {:?}\n", tn_witnesses);
+            if print{
+                println!("---- Found witnesses at indices: {:?}\n", tn_witnesses);
+            }
             tn_witnesses_lists.push(tn_witnesses);
         }
 
@@ -461,7 +496,7 @@ pub fn generate_trans_and_witnesses(
         witness_clients.push(participants.remove(*witness - i))
     }
 
-    return Ok((transacting_clients, witness_clients));
+    return Ok(Some((transacting_clients, witness_clients)));
 }
 
 pub fn reset_clients(

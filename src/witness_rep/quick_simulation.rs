@@ -37,8 +37,9 @@ pub const ALPH9: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ9";
 pub const DEFAULT_DURATION: u32 = 60*60*24*365; // 1 year
 
 pub async fn quick_simulation(
-    sc: SimulationConfig
-) -> Result<String> {
+    sc: SimulationConfig,
+    print: bool
+) -> Result<(String, bool)> {
 
     if sc.reliability.len() != sc.num_participants {
         panic!("Number of elements in 'reliability' parameter must equal the num_participants!");
@@ -50,7 +51,9 @@ pub async fn quick_simulation(
     
     let time: DateTime<Utc> = Utc::now();
     let folder_name = format!("./runs/Quick emmulation run {:?}", time);
-    println!("{}", folder_name);
+    if print {
+        println!("{}", folder_name);
+    }
     fs::create_dir(&folder_name)?;
 
     
@@ -170,7 +173,9 @@ pub async fn quick_simulation(
 
     // generate the lazy methods (currenlty the first half of the runs are 
     // 'constant true' and the second half are 'random')
-    println!("Generating lazy methods:");
+    if print {
+        println!("Generating lazy methods:");
+    }
     let lazy_methods: Vec<LazyMethod> = (0..sc.runs)
         .map(|_| {
             match rand_gen.gen_range(0,3) {
@@ -181,18 +186,34 @@ pub async fn quick_simulation(
             }
         }).collect::<Vec<LazyMethod>>()
         .try_into().expect("wrong size iterator");
-    println!("-- Lazy methods to be used: {:?}\n", lazy_methods);
+    if print {
+        println!("-- Lazy methods to be used: {:?}\n", lazy_methods);
+    }
 
+    let mut ran_fully = true;
     for i in 0..sc.runs {
         println!("\n\n\n---------------------STARTING RUN {}---------------------", i);
         //--------------------------------------------------------------
         // GENERATE GROUPS OF TRANSACATING NODES AND WITNESSES
         //--------------------------------------------------------------
 
-        let (mut transacting_clients, mut witness_clients) = generate_trans_and_witnesses(&mut participants,
+        let gen_op = generate_trans_and_witnesses(
+            &mut participants,
             sc.average_proximity,
             sc.witness_floor,
-            &mut rand_gen)?;
+            &mut rand_gen,
+            100,
+            print
+        )?;
+    
+        let (mut transacting_clients, mut witness_clients) = match gen_op{
+            None => {
+                println!("FAILED TO RUN");
+                ran_fully = false;
+                continue;
+            },
+            Some(x) => x
+        };
 
         //--------------------------------------------------------------
         // GET THE ORGANIZATION OF THE INITIATING TRANSACTING NODE [0]
@@ -201,28 +222,43 @@ pub async fn quick_simulation(
         // get orgs' pubkey and find the org with that pubkey
         let init_tn_org_pk = &transacting_clients[0].id_info.org_cert.org_pubkey;
         let org_index = get_index_org_with_pubkey(&organizations, init_tn_org_pk);
-        println!("\nRun under organization {}\n", organizations[org_index].identity.id_info.org_cert.client_pubkey);
+        if print {
+            println!("\nRun under organization {}\n", organizations[org_index].identity.id_info.org_cert.client_pubkey);        
+        }
 
         //--------------------------------------------------------------
         // GENERATE CONTRACT
         //--------------------------------------------------------------
 
-        println!("Generating contract:");
+        if print {
+            println!("Generating contract:");        
+        }
         let contract = generate_contract::generate_contract(&mut transacting_clients)?;
-        println!("-- Contract generated\n");
+        if print {
+            println!("-- Contract generated\n");
+        }
 
         //--------------------------------------------------------------
         // PERFORM THE TRANSACTION WITH CONTRACT
         //--------------------------------------------------------------
 
-        let (tn_honesty, wn_honesty, msgs) = quick_transact(
+        let op_ret = quick_transact(
             contract,
             &mut transacting_clients,
             &mut witness_clients,
             &mut organizations[org_index],
             lazy_methods[i].clone(),
             i,
+            print
         ).await?;
+
+        let (tn_honesty, wn_honesty, msgs) = match op_ret {
+            None => {
+                ran_fully = false;
+                continue;
+            },
+            Some(x) => x
+        };
 
         // put the particpants back into the original array
         participants.append(&mut witness_clients);
@@ -277,5 +313,5 @@ pub async fn quick_simulation(
     let file_name = format!("{}/reliability_maps.txt", &folder_name);
     fs::write(file_name, output).expect("Unable to write file");
 
-    return Ok(folder_name);
+    return Ok((folder_name, ran_fully));
 }

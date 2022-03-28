@@ -26,8 +26,8 @@ pub fn run_avg_mean_squared_error(rel_map: ReliabilityMap) -> Result<f32> {
 
     let true_arr: Array = Array::from(true_rels.clone());
     let estm_arr: Array = Array::from(estm_rels.clone());
-    println!("{:?}", true_rels);
-    println!("{:?}", estm_rels);
+/*     println!("{:?}", true_rels);
+    println!("{:?}", estm_rels); */
 
     let mse = mean_squared_error(&true_arr, &estm_arr);
     return Ok(mse)

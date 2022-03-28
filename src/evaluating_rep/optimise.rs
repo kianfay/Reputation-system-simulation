@@ -106,10 +106,14 @@ where C: SCIterator
             _   => {}
         };
 
-        let dir_name = quick_simulation(next_sc.unwrap().clone()).await?;
+        let (dir_name, ran_fully) = quick_simulation(next_sc.unwrap().clone(), false).await?;
         let rel_map = read_reliabilities(dir_name, false)?;
         let mse = run_avg_mean_squared_error(rel_map)?;
-        results.push((i, mse));
+        if ran_fully {
+            results.push((i, mse));
+        } else {
+            results.push((i, -1.0));
+        }
     }
 
     println!("{:?}", &results);
@@ -120,6 +124,40 @@ where C: SCIterator
         }).unwrap();
 
     return Ok(optimal);
+}
+
+pub async fn find_optimal_two_fields<C1, C2>(
+    ind_var_1: &mut C1,
+    ind_var_2: &mut C2,
+) -> Result<Vec<(usize, (usize, f32))>> 
+where 
+    C1: SCIterator,
+    C2: SCIterator
+{
+    let mut results: Vec<(usize, (usize, f32))> = Vec::new();
+    for i in 0.. {
+        let next_sc_ = ind_var_1.next();
+        match next_sc_ {
+            None=> {break;},
+            _   => {}
+        };
+        let next_sc = next_sc_.unwrap();
+
+        let mut ind_var: IndependantVar<IndependantVarPart> = IndependantVar {
+            sc: next_sc,
+            independant_var: IndependantVarPart {
+                independant_var: IndependantVarPartHollow::DefaultReliability,
+                current_mean: 40,
+                current_std: 2,
+                range: 40..60
+            }
+        };
+
+        let optimal = find_optimal(&mut ind_var).await?;
+        results.push((i, optimal));
+    }
+
+    return Ok(results);
 }
 
 /// Updates the config to it's next state. Acts like an interator.
