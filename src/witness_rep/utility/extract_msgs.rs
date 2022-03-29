@@ -68,10 +68,14 @@ pub fn extract_msg(
                     }
 
                     pay = (&pay[1..]).to_string();
-
                     let substr = &pay[0..16];
                     if substr == "{\"InteractionMsg" {
                         messages.insert(run_i, new_vec.clone());
+                        
+                        println!("First: {}", pay);
+                        // IMPORTANT -- CORRUPTS THE INTERACTION MESSAGE FOR TESTING PURPOSES -- COMMENT OUT
+                        pay.replace_range(1002..1003, "0");
+                        println!("Then: {}", pay);
                     }
 
                     let pubk = MethodData::new_multibase(pk);

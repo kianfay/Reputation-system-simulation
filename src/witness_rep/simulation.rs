@@ -120,14 +120,14 @@ pub async fn simulation(
         })
         .collect::<String>();
 
-        let on: Author<Tangle> = Author::new(seed, ChannelType::MultiBranch, client.clone());
+        let on: Author<Tangle> = Author::new(seed.clone(), ChannelType::MultiBranch, client.clone());
         let repeat_kp = KeyPair::try_from_ed25519_bytes(&sec)?;
         let pubkey =  generate_sigs::get_multibase(&repeat_kp);
         let reliability_map: ReliabilityMap = HashMap::new();
 
         let org_id: Identity<Author<Client>> = Identity{
             channel_client: on,
-            seed: String::from(" "),
+            seed: String::from(seed),
             id_info: IdInfo {
                 did_key: sec,
                 reliability: sc.reliability[i],
@@ -205,10 +205,20 @@ pub async fn simulation(
         //println!("Creating the channel for oranization {}:", i);
         let announcement_link = organizations[i].identity.channel_client.send_announce().await?;
         let ann_link_string = announcement_link.to_string();
-        /*println!(
+        println!(
             "-- Announcement Link: {} Tangle Index: {:#}\n",
             ann_link_string, announcement_link.to_msg_index()
-        );*/
+        );
+        println!("---- Organization seed: {:#}\n", organizations[i].identity.seed);
+
+        /* instantiate the reader subscriber (each sub can only attatch to one channel, but the)
+        name parameter is what determines the keypair values*/
+        let mut reader_sub = Subscriber::new("reader", client.clone());
+
+        // we add the reader subscriber to the channel
+        reader_sub.receive_announcement(&announcement_link).await?;
+        let subscribe_msg = reader_sub.send_subscribe(&announcement_link).await?;
+        organizations[i].identity.channel_client.receive_subscribe(&subscribe_msg).await?;
 
         // change the organization struct to include their channel announcement
         organizations[i].ann_msg = Some(ann_link_string);

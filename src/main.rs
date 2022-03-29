@@ -73,7 +73,7 @@ async fn main() -> Result<()> {
     let mse = evaluating_rep::stats::run_avg_mean_squared_error(rel_map)?;
     //println!("{}", mse); */
 
-    // Run the quick simulation
+/*     // Run the quick simulation
     let sc = witness_rep::simulation::SimulationConfig {
         node_url: String::from(url),
         num_participants: 15,
@@ -90,13 +90,13 @@ async fn main() -> Result<()> {
     // evaluate the results
     let rel_map = evaluating_rep::stats::read_reliabilities(dir_name, false)?;
     let mse = evaluating_rep::stats::run_avg_mean_squared_error(rel_map)?;
-    //println!("{}", mse); 
+    //println!("{}", mse);  */
 
-/*     let ann = "10a54dd01a48799c8def58b315a85b2aa62ccd3ca443c75350234054d11230160000000000000000:d5227ec97cc8597a471b9478";
-    let seed = "Participant 0";
+    let ann = "abaa995ccbc8aeb2fea8bbda1a0c506359e9305a55de5833daa9b2e7cb3f375f0000000000000000:7f9a9dd4a9b4c7d6509fc4ea";
+    let seed = "reader";
     let channel_msgs = witness_rep::utility::read_msgs::read_msgs(url, ann, seed).await?;
-    let branch_msgs = witness_rep::utility::extract_msgs::extract_msg(channel_msgs, witness_rep::utility::verify_tx::WhichBranch::LastBranch);
-    //println!("{:?}", branch_msgs[0]); */
+    let (verified, _, _) = witness_rep::utility::verify_tx::verify_txs(channel_msgs, witness_rep::utility::verify_tx::WhichBranch::LastBranch).await?;
+    println!("{:?}", verified);
 
     Ok(())
 }
