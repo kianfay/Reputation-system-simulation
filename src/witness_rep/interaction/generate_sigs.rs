@@ -3,7 +3,7 @@ use trust_score_generator::trust_score_generators::{
         messages::{
             contract::{Contract},
             signatures::{
-                witness_sig, transacting_sig, organization_cert
+                witness_sig, interaction_sig, organization_cert
             },
             tx_messages::WitnessClients
         }
@@ -58,15 +58,15 @@ pub fn generate_transacting_sig(
     channel_pk_as_multibase: String,
     did_keypair: KeyPair,
     witnesses: WitnessClients,
-    witness_sigs: transacting_sig::ArrayOfWnSignituresBytes,
+    witness_sigs: interaction_sig::ArrayOfWnSignituresBytes,
     org_cert: organization_cert::OrgCert,
     timeout: u32
-) -> Result<transacting_sig::TransactingSig> {
+) -> Result<interaction_sig::InteractionSig> {
 
     let did_pk_as_multibase: String = get_multibase(&did_keypair);
 
-    // TN_A signs the transaction
-    let tn_a_tx_msg_pre_sig = transacting_sig::TransactingPreSig {
+    // TN_A signs the interaction
+    let tn_a_tx_msg_pre_sig = interaction_sig::InteractionPreSig {
         contract: contract.clone(),
         signer_channel_pubkey: channel_pk_as_multibase.clone(),
         witnesses: witnesses.clone(),
@@ -78,7 +78,7 @@ pub fn generate_transacting_sig(
     let tn_a_tx_msg_sig: [u8; 64]  = Ed25519::sign(&String::into_bytes(tn_a_tx_msg_pre_sig_bytes), did_keypair.private())?;
 
     // TN_A packs the signature bytes in with the signiture message
-    let tn_a_sig = transacting_sig::TransactingSig {
+    let tn_a_sig = interaction_sig::InteractionSig {
         contract: contract.clone(),
         signer_channel_pubkey: channel_pk_as_multibase.clone(),
         witnesses: witnesses,

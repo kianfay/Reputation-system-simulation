@@ -1,10 +1,10 @@
 use crate::witness_rep::{
-    transaction::{
+    interaction::{
         generate_sigs, 
         participant::{
             ParticipantIdentity, OrganizationIdentity, IdInfo, get_public_keys
         },
-        transaction::{extract_from_ids, get_honest_nodes, lazy_outcome, LazyMethod}
+        interaction::{extract_from_ids, get_honest_nodes, lazy_outcome, LazyMethod}
     },
 };
 
@@ -14,7 +14,7 @@ use trust_score_generator::trust_score_generators::{
             tx_messages as message,
             contract::{Contract, PublicKey},
             signatures::{
-                witness_sig, transacting_sig, organization_cert, 
+                witness_sig, interaction_sig, organization_cert, 
             },
             tx_messages::{
                 WitnessClients, ArrayOfWnSignitures, ArrayOfTxSignitures
@@ -136,7 +136,7 @@ pub async fn quick_transact(
     if print {
         println!("Transacting nodes generate their signatures:");
     }
-    let mut transacting_sigs: Vec<transacting_sig::TransactingSig> = Vec::new();
+    let mut transacting_sigs: Vec<interaction_sig::InteractionSig> = Vec::new();
     for i in 0..transacting_clients.len() {
         let multibase_pub = MethodData::new_multibase(transacting_clients[i].get_public_key());
         let channel_pk_as_multibase: String;
@@ -151,7 +151,7 @@ pub async fn quick_transact(
             channel_pk_as_multibase,
             transacting_did_kp[i].clone(),
             WitnessClients(witnesses.clone()),
-            transacting_sig::ArrayOfWnSignituresBytes(witness_sigs_bytes.clone()),
+            interaction_sig::ArrayOfWnSignituresBytes(witness_sigs_bytes.clone()),
             transacting_org_certs[i].clone(),
             DEFAULT_TIMEOUT
         )?;
@@ -163,20 +163,20 @@ pub async fn quick_transact(
 
     //--------------------------------------------------------------
     // INITIATING TN, HAVING REVEIVED THE SIGNATURES, 
-    // BUILD FINAL TRANSACTION (TN = TRANSACTING NODE)
+    // BUILD FINAL INTERACTION (TN = TRANSACTING NODE)
     //--------------------------------------------------------------
 
     if print {
-        println!("Initiating transacting node generates TransactionMessage:");
+        println!("Initiating transacting node generates InteractionMessage:");
     }
-    let transaction_msg = message::Message::TransactionMsg {
+    let interaction_msg = message::Message::InteractionMsg {
         contract: contract.clone(),
         witnesses: WitnessClients(witnesses.clone()),
         wit_node_sigs: ArrayOfWnSignitures(witness_sigs.clone()),
         tx_client_sigs: ArrayOfTxSignitures(transacting_sigs.clone()),
     };
     if print {
-        println!("-- TransactionMessage generated");
+        println!("-- InteractionMessage generated");
     }
     
     //--------------------------------------------------------------
@@ -184,7 +184,7 @@ pub async fn quick_transact(
     //--------------------------------------------------------------
 
     let msg = tsg_message::MessageAndPubkey {
-        message: transaction_msg,
+        message: interaction_msg,
         sender_did: transacting_org_certs[0].client_pubkey.clone()
     };
     messages.push(msg);
@@ -282,7 +282,7 @@ pub async fn quick_transact(
 
         // TODO - certain TNs need to compensate other TNs
 
-        // TN prepares the compensation transaction 
+        // TN prepares the compensation interaction 
         let payments_tn_a = vec![
             //"tn_b: 0.1".to_string(),
             "wn_a: 0.01".to_string(),

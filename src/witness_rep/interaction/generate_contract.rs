@@ -1,5 +1,5 @@
 use crate::witness_rep::{
-    transaction::participant::{
+    interaction::participant::{
         ParticipantIdentity, IdInfo
     },
 };

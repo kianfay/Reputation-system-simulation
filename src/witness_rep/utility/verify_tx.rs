@@ -7,7 +7,7 @@ use trust_score_generator::trust_score_generators::{
         messages::{
             tx_messages as message,
             signatures::{
-                witness_sig, transacting_sig
+                witness_sig, interaction_sig
             },
         }
     },
@@ -37,7 +37,7 @@ pub enum WhichBranch {
     LastBranch
 }
 
-/// Returns whether the transaction msgs were valid, the messages, and the channel pks which signed the msgs
+/// Returns whether the interaction's msgs were valid, the messages, and the channel pks which signed the msgs
 pub async fn verify_txs(
     msgs: Vec<UnwrappedMessage>,
     branches: WhichBranch
@@ -51,7 +51,7 @@ pub async fn verify_txs(
     let only_msgs = msgs.iter().map(|(msg, _)| msg.clone()).collect();
     let only_pks = msgs.iter().map(|(_, pk)| pk.clone()).collect();
 
-    // parse the string into the TransactionMsg/WitnessStatement/CompensationMsg format and check if valid
+    // parse the string into the InteractionMsg/WitnessStatement/CompensationMsg format and check if valid
     let mut valid_pks: Vec<PublickeyOwner> = Vec::new();
     for (cur_msg, pk) in msgs.iter() {
         let deserialised_msg: message::Message = serde_json::from_str(cur_msg.as_str())?;
@@ -78,13 +78,13 @@ pub async fn verify_txs(
 }
 
 /// Accepts a tuple of a message content and the sender's channel public key.
-/// If it is a valid TransactionMessage, it will return true and a valid channel public keys and it's ownership
+/// If it is a valid InteractionMsg, it will return true and a valid channel public keys and it's ownership
 pub fn verify_msg( (tx_msg,channel_pk) : (message::Message, &String), mut valid_pks: Vec<PublickeyOwner>) -> Result<(bool, Option<Vec<PublickeyOwner>>)> {
     match tx_msg {
-        message::Message::TransactionMsg {
+        message::Message::InteractionMsg {
             contract, witnesses, wit_node_sigs, tx_client_sigs
         } => {
-            let tx_msg = message::Message::TransactionMsg {contract, witnesses, wit_node_sigs, tx_client_sigs};
+            let tx_msg = message::Message::InteractionMsg {contract, witnesses, wit_node_sigs, tx_client_sigs};
             let (message::ArrayOfWnSignitures(wit_sigs), message::ArrayOfTxSignitures(tn_sigs)) = get_sigs(tx_msg);
             
             let mut witness_sigs: Vec<Vec<u8>> = Vec::new();
@@ -141,13 +141,13 @@ pub fn get_sigs(
     tx: message::Message
 ) -> (message::ArrayOfWnSignitures,message::ArrayOfTxSignitures) {
     match tx {
-        message::Message::TransactionMsg {
+        message::Message::InteractionMsg {
             contract: _,
             witnesses: _,
             wit_node_sigs,
             tx_client_sigs,
         } => return (wit_node_sigs, tx_client_sigs),
-        _ => panic!("Can only get signatures from a TransactionMsg message")
+        _ => panic!("Can only get signatures from a InteractionMsg message")
     };
 }
 
@@ -187,9 +187,9 @@ pub fn verify_witness_sig(
 }
 
 // returns a bool indicating if valid, and a string of the channel pubkey of this sub
-pub fn verify_tx_sig(sig: transacting_sig::TransactingSig, sorted_witness_sigs: Vec<Vec<u8>>) -> Result<(bool, String)>{
+pub fn verify_tx_sig(sig: interaction_sig::InteractionSig, sorted_witness_sigs: Vec<Vec<u8>>) -> Result<(bool, String)>{
     match sig {
-        transacting_sig::TransactingSig {
+        interaction_sig::InteractionSig {
             contract,
             signer_channel_pubkey,
             witnesses,
@@ -211,7 +211,7 @@ pub fn verify_tx_sig(sig: transacting_sig::TransactingSig, sorted_witness_sigs: 
             }
 
 
-            let pre_sig = transacting_sig::TransactingPreSig {
+            let pre_sig = interaction_sig::InteractionPreSig {
                 contract,
                 signer_channel_pubkey: signer_channel_pubkey.clone(),
                 witnesses,
@@ -245,7 +245,7 @@ pub fn verify_tx_sig(sig: transacting_sig::TransactingSig, sorted_witness_sigs: 
     //let txback : message::Message = serde_json::from_str("{{\"contract\":{{\"contract_definition\":\"tn_b allows tn_a to enter in front of it in the lane tn_b is in\",\"participants\":[\"zAf95pggBY7aDjZgDCwsp1bWJZaGQSrQ2w8Njtx9NTt9Z\",\"z69fT9PoLLjij8ZofrHyLpUkU62spCB6Waqjh7eF3jJE1\"],\"time\":1643572739,\"location\":[[53,20,27.036],[6,15,2.695]]}},\"witnesses\":[\"z88JJehsqhqYeR8mPLn76grqy35Dn7q4iZNxbchXLMCyy\",\"zJB3y431YDHLUohS4uT6bjDikttuP8wsxcVmv2VzhEYxr\"],\"wit_node_sigs\":[{{\"contract\":{{\"contract_definition\":\"tn_b allows tn_a to enter in front of it in the lane tn_b is in\",\"participants\":[\"zAf95pggBY7aDjZgDCwsp1bWJZaGQSrQ2w8Njtx9NTt9Z\",\"z69fT9PoLLjij8ZofrHyLpUkU62spCB6Waqjh7eF3jJE1\"],\"time\":1643572739,\"location\":[[53,20,27.036],[6,15,2.695]]}},\"signer_channel_pubkey\":\"z84iDAGmmt4uK8PHbyCKWzfmApagUxyttVQSzi8gRAr8o\",\"timeout\":120,\"signer_did_pubkey\":\"z88JJehsqhqYeR8mPLn76grqy35Dn7q4iZNxbchXLMCyy\",\"signature\":[162,63,75,203,166,227,226,172,10,90,33,231,7,221,151,94,92,91,32,195,191,92,186,34,230,158,211,61,185,229,49,58,144,2,103,19,93,255,57,166,71,92,17,8,158,158,11,12,247,22,45,70,128,21,138,218,78,185,68,160,194,142,196,4]}},{{\"contract\":{{\"contract_definition\":\"tn_b allows tn_a to enter in front of it in the lane tn_b is in\",\"participants\":[\"zAf95pggBY7aDjZgDCwsp1bWJZaGQSrQ2w8Njtx9NTt9Z\",\"z69fT9PoLLjij8ZofrHyLpUkU62spCB6Waqjh7eF3jJE1\"],\"time\":1643572739,\"location\":[[53,20,27.036],[6,15,2.695]]}},\"signer_channel_pubkey\":\"zGPzWmjMbFmXmjFNWcjwxXEiYxiYYmabHt7n1TCP8fnEF\",\"timeout\":120,\"signer_did_pubkey\":\"zJB3y431YDHLUohS4uT6bjDikttuP8wsxcVmv2VzhEYxr\",\"signature\":[21,3,215,246,167,52,117,29,144,62,100,37,195,205,25,43,163,41,51,30,233,251,38,153,244,106,211,200,4,61,210,67,75,10,197,224,212,84,192,227,27,32,0,29,53,171,187,250,126,173,80,86,245,64,204,239,165,45,109,207,105,79,233,10]}}],\"tx_client_sigs\":[{{\"contract\":{{\"contract_definition\":\"tn_b allows tn_a to enter in front of it in the lane tn_b is in\",\"participants\":[\"zAf95pggBY7aDjZgDCwsp1bWJZaGQSrQ2w8Njtx9NTt9Z\",\"z69fT9PoLLjij8ZofrHyLpUkU62spCB6Waqjh7eF3jJE1\"],\"time\":1643572739,\"location\":[[53,20,27.036],[6,15,2.695]]}},\"signer_channel_pubkey\":\"zBmKHy6koZQumcYA9nQbfi82Bzrqk36UYbdMKp2qqxGxe\",\"witnesses\":[\"z88JJehsqhqYeR8mPLn76grqy35Dn7q4iZNxbchXLMCyy\",\"zJB3y431YDHLUohS4uT6bjDikttuP8wsxcVmv2VzhEYxr\"],\"wit_node_sigs\":[{{\"contract\":{{\"contract_definition\":\"tn_b allows tn_a to enter in front of it in the lane tn_b is in\",\"participants\":[\"zAf95pggBY7aDjZgDCwsp1bWJZaGQSrQ2w8Njtx9NTt9Z\",\"z69fT9PoLLjij8ZofrHyLpUkU62spCB6Waqjh7eF3jJE1\"],\"time\":1643572739,\"location\":[[53,20,27.036],[6,15,2.695]]}},\"signer_channel_pubkey\":\"z84iDAGmmt4uK8PHbyCKWzfmApagUxyttVQSzi8gRAr8o\",\"timeout\":120,\"signer_did_pubkey\":\"z88JJehsqhqYeR8mPLn76grqy35Dn7q4iZNxbchXLMCyy\",\"signature\":[162,63,75,203,166,227,226,172,10,90,33,231,7,221,151,94,92,91,32,195,191,92,186,34,230,158,211,61,185,229,49,58,144,2,103,19,93,255,57,166,71,92,17,8,158,158,11,12,247,22,45,70,128,21,138,218,78,185,68,160,194,142,196,4]}},{{\"contract\":{{\"contract_definition\":\"tn_b allows tn_a to enter in front of it in the lane tn_b is in\",\"participants\":[\"zAf95pggBY7aDjZgDCwsp1bWJZaGQSrQ2w8Njtx9NTt9Z\",\"z69fT9PoLLjij8ZofrHyLpUkU62spCB6Waqjh7eF3jJE1\"],\"time\":1643572739,\"location\":[[53,20,27.036],[6,15,2.695]]}},\"signer_channel_pubkey\":\"zGPzWmjMbFmXmjFNWcjwxXEiYxiYYmabHt7n1TCP8fnEF\",\"timeout\":120,\"signer_did_pubkey\":\"zJB3y431YDHLUohS4uT6bjDikttuP8wsxcVmv2VzhEYxr\",\"signature\":[21,3,215,246,167,52,117,29,144,62,100,37,195,205,25,43,163,41,51,30,233,251,38,153,244,106,211,200,4,61,210,67,75,10,197,224,212,84,192,227,27,32,0,29,53,171,187,250,126,173,80,86,245,64,204,239,165,45,109,207,105,79,233,10]}}],\"timeout\":120,\"signer_did_pubkey\":\"zAf95pggBY7aDjZgDCwsp1bWJZaGQSrQ2w8Njtx9NTt9Z\",\"signature\":[183,205,116,252,46,63,163,254,194,207,62,1,137,134,209,178,135,142,176,115,232,254,135,241,129,141,245,210,186,91,240,35,198,81,220,31,53,121,174,199,51,248,138,58,49,50,170,139,22,204,136,171,1,34,229,54,25,13,174,57,159,174,43,7]}},{{\"contract\":{{\"contract_definition\":\"tn_b allows tn_a to enter in front of it in the lane tn_b is in\",\"participants\":[\"zAf95pggBY7aDjZgDCwsp1bWJZaGQSrQ2w8Njtx9NTt9Z\",\"z69fT9PoLLjij8ZofrHyLpUkU62spCB6Waqjh7eF3jJE1\"],\"time\":1643572739,\"location\":[[53,20,27.036],[6,15,2.695]]}},\"signer_channel_pubkey\":\"zHHRYyM584S8bnoWeG8vLTzy24EPif3rNPgQ862Qnqy1m\",\"witnesses\":[\"z88JJehsqhqYeR8mPLn76grqy35Dn7q4iZNxbchXLMCyy\",\"zJB3y431YDHLUohS4uT6bjDikttuP8wsxcVmv2VzhEYxr\"],\"wit_node_sigs\":[{{\"contract\":{{\"contract_definition\":\"tn_b allows tn_a to enter in front of it in the lane tn_b is in\",\"participants\":[\"zAf95pggBY7aDjZgDCwsp1bWJZaGQSrQ2w8Njtx9NTt9Z\",\"z69fT9PoLLjij8ZofrHyLpUkU62spCB6Waqjh7eF3jJE1\"],\"time\":1643572739,\"location\":[[53,20,27.036],[6,15,2.695]]}},\"signer_channel_pubkey\":\"z84iDAGmmt4uK8PHbyCKWzfmApagUxyttVQSzi8gRAr8o\",\"timeout\":120,\"signer_did_pubkey\":\"z88JJehsqhqYeR8mPLn76grqy35Dn7q4iZNxbchXLMCyy\",\"signature\":[162,63,75,203,166,227,226,172,10,90,33,231,7,221,151,94,92,91,32,195,191,92,186,34,230,158,211,61,185,229,49,58,144,2,103,19,93,255,57,166,71,92,17,8,158,158,11,12,247,22,45,70,128,21,138,218,78,185,68,160,194,142,196,4]}},{{\"contract\":{{\"contract_definition\":\"tn_b allows tn_a to enter in front of it in the lane tn_b is in\",\"participants\":[\"zAf95pggBY7aDjZgDCwsp1bWJZaGQSrQ2w8Njtx9NTt9Z\",\"z69fT9PoLLjij8ZofrHyLpUkU62spCB6Waqjh7eF3jJE1\"],\"time\":1643572739,\"location\":[[53,20,27.036],[6,15,2.695]]}},\"signer_channel_pubkey\":\"zGPzWmjMbFmXmjFNWcjwxXEiYxiYYmabHt7n1TCP8fnEF\",\"timeout\":120,\"signer_did_pubkey\":\"zJB3y431YDHLUohS4uT6bjDikttuP8wsxcVmv2VzhEYxr\",\"signature\":[21,3,215,246,167,52,117,29,144,62,100,37,195,205,25,43,163,41,51,30,233,251,38,153,244,106,211,200,4,61,210,67,75,10,197,224,212,84,192,227,27,32,0,29,53,171,187,250,126,173,80,86,245,64,204,239,165,45,109,207,105,79,233,10]}}],\"timeout\":120,\"signer_did_pubkey\":\"z69fT9PoLLjij8ZofrHyLpUkU62spCB6Waqjh7eF3jJE1\",\"signature\":[35,201,117,1,58,220,198,161,105,28,156,52,19,90,116,97,176,101,81,11,157,81,184,3,248,148,1,254,48,214,191,60,174,153,39,37,4,135,252,241,234,203,14,171,49,254,86,93,0,132,190,58,238,230,29,245,55,10,91,29,146,59,103,8]}}]}}")?;
     match txback {
         message::Message::WitnessStatement { outcome} => println!("Witness {}", outcome),
-        message::Message::TransactionMsg { contract,witnesses,wit_node_sigs,tx_client_sigs} => println!("Tx"),
+        message::Message::InteractionMsg { contract,witnesses,wit_node_sigs,tx_client_sigs} => println!("Tx"),
         _ => println!("neither"),
     }
     return Ok(());

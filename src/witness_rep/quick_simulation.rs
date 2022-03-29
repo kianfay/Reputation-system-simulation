@@ -1,8 +1,8 @@
 use crate::witness_rep::{
     iota_did::create_and_upload_did::{create_n_dids, Key, RunMode},
-    transaction::{generate_contract, generate_sigs},
-    transaction::{
-        transaction::{LazyMethod},
+    interaction::{generate_contract, generate_sigs},
+    interaction::{
+        interaction::{LazyMethod},
         quick_transaction::quick_transact,
         participant::{
             ParticipantIdentity, OrganizationIdentity,
@@ -239,7 +239,7 @@ pub async fn quick_simulation(
         }
 
         //--------------------------------------------------------------
-        // PERFORM THE TRANSACTION WITH CONTRACT
+        // PERFORM THE INTERACTION WITH CONTRACT
         //--------------------------------------------------------------
 
         let op_ret = quick_transact(

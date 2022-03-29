@@ -1,8 +1,8 @@
 use crate::witness_rep::{
     iota_did::create_and_upload_did::{create_n_dids, Key, RunMode},
-    transaction::{generate_contract, generate_sigs},
-    transaction::{
-        transaction::{transact, LazyMethod},
+    interaction::{generate_contract, generate_sigs},
+    interaction::{
+        interaction::{transact, LazyMethod},
         participant::{
             ParticipantIdentity, OrganizationIdentity,
             IdInfo, ReliabilityMap, Identity, get_index_org_with_pubkey}
@@ -60,7 +60,7 @@ pub struct SimulationConfig {
 // 
 // Params:
 //      - average_proximity: [0,1], 1 meaning all participants are in range
-//      - witness_floor: the minimum number of witnesses in a transaction
+//      - witness_floor: the minimum number of witnesses in a interaction
 //      - runs: the number of iterations of the simulations
 //      - reliability: an array assigning a reliability score to participants at the respective indices
 //      - organizations: an array assigning a organization to participants at the respective indices
@@ -321,7 +321,7 @@ pub async fn simulation_iteration(
     println!("-- Contract generated\n");
 
     //--------------------------------------------------------------
-    // PERFORM THE TRANSACTION WITH CONTRACT
+    // PERFORM THE INTERACTION WITH CONTRACT
     //--------------------------------------------------------------
 
     let (tn_honesty, wn_honesty) = transact(
@@ -338,10 +338,10 @@ pub async fn simulation_iteration(
     participants.append(&mut transacting_clients);
 
     //--------------------------------------------------------------
-    // VERIFY THE TRANSACTION AND SAVE THE OUTPUT TO FILE
+    // VERIFY THE INTERACTION AND SAVE THE OUTPUT TO FILE
     //--------------------------------------------------------------
 
-    // verify the transaction
+    // verify the interaction
     let ann_msg = &organizations[org_index].ann_msg.as_ref().unwrap();
     let org_seed = &organizations[org_index].seed;
     let branches = verify_tx::WhichBranch::LastBranch;
@@ -368,7 +368,7 @@ pub async fn simulation_iteration(
 
     //--------------------------------------------------------------
     // ALL PARTICIPANTS NOW UPDATE THEIR RELIABILITY SCORES BY
-    // PROCESSING THE LATEST TRANSACTION
+    // PROCESSING THE LATEST INTERACTION
     //--------------------------------------------------------------
 
     // participants update their reliability scores of each other

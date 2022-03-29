@@ -69,9 +69,8 @@ pub fn extract_msg(
 
                     pay = (&pay[1..]).to_string();
 
-                    // first 16 chars = {"TransactionMsg
                     let substr = &pay[0..16];
-                    if substr == "{\"TransactionMsg" {
+                    if substr == "{\"InteractionMsg" {
                         messages.insert(run_i, new_vec.clone());
                     }
 

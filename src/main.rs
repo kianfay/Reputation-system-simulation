@@ -77,7 +77,7 @@ async fn main() -> Result<()> {
     let sc = witness_rep::simulation::SimulationConfig {
         node_url: String::from(url),
         num_participants: 15,
-        average_proximity: 0.6,
+        average_proximity: 0.3,
         witness_floor: 2,
         runs: 4,
         reliability: vec![1.0, 1.0, 0.4, 0.7, 0.6, 0.8, 0.9, 0.7, 0.3, 0.6, 1.0, 0.7, 0.4, 0.5, 1.0],

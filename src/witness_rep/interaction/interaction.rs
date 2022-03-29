@@ -1,5 +1,5 @@
 use crate::witness_rep::{
-    transaction::{
+    interaction::{
         generate_sigs, 
         participant::{
             ParticipantIdentity, OrganizationIdentity, IdInfo, get_public_keys
@@ -13,7 +13,7 @@ use trust_score_generator::trust_score_generators::{
             tx_messages as message,
             contract::{Contract, PublicKey},
             signatures::{
-                witness_sig, transacting_sig, organization_cert, 
+                witness_sig, interaction_sig, organization_cert, 
             },
             tx_messages::{
                 WitnessClients, ArrayOfWnSignitures, ArrayOfTxSignitures
@@ -249,7 +249,7 @@ pub async fn transact(
         .collect();
 
     println!("Transacting nodes generate their signatures:");
-    let mut transacting_sigs: Vec<transacting_sig::TransactingSig> = Vec::new();
+    let mut transacting_sigs: Vec<interaction_sig::InteractionSig> = Vec::new();
     for i in 0..transacting_clients.len() {
         let multibase_pub = MethodData::new_multibase(transacting_clients[i].get_public_key());
         let channel_pk_as_multibase: String;
@@ -264,7 +264,7 @@ pub async fn transact(
             channel_pk_as_multibase,
             transacting_did_kp[i].clone(),
             WitnessClients(witnesses.clone()),
-            transacting_sig::ArrayOfWnSignituresBytes(witness_sigs_bytes.clone()),
+            interaction_sig::ArrayOfWnSignituresBytes(witness_sigs_bytes.clone()),
             transacting_org_certs[i].clone(),
             DEFAULT_TIMEOUT
         )?;
@@ -277,30 +277,30 @@ pub async fn transact(
     // BUILD FINAL TRANSACTION (TN = TRANSACTING NODE)
     //--------------------------------------------------------------
 
-    println!("Initiating transacting node generates TransactionMessage:");
-    let transaction_msg = message::Message::TransactionMsg {
+    println!("Initiating transacting node generates InteractionMessage:");
+    let interaction_msg = message::Message::InteractionMsg {
         contract: contract.clone(),
         witnesses: WitnessClients(witnesses.clone()),
         wit_node_sigs: ArrayOfWnSignitures(witness_sigs.clone()),
         tx_client_sigs: ArrayOfTxSignitures(transacting_sigs.clone()),
     };
-    println!("-- TransactionMessage generated");
+    println!("-- InteractionMessage generated");
     
     //--------------------------------------------------------------
-    // INITIATING TN SENDS THE TRANSACTION MESSAGE
+    // INITIATING TN SENDS THE INTERACTION MESSAGE
     //--------------------------------------------------------------
 
     // serialise the tx
-    let mut tx_msg_str = serde_json::to_string(&transaction_msg)?; 
+    let mut tx_msg_str = serde_json::to_string(&interaction_msg)?; 
     tx_msg_str = workaround_channel_bug(run, tx_msg_str);
     let tx_message = vec![
         tx_msg_str
     ];
-    println!("-- TransactionMessage serialized\n");
+    println!("-- InteractionMessage serialized\n");
 
 
-    // TN_A sends the transaction
-    println!("Initiating transacting node sends TransactionMessage:");
+    // TN_A sends the interaction
+    println!("Initiating transacting node sends InteractionMessage:");
     let mut prev_msg_link = keyload_a_link;
     sync_all(&mut transacting_clients).await?;
     sync_all(&mut witness_clients).await?;
@@ -309,7 +309,7 @@ pub async fn transact(
         &Bytes(tx_message[0].as_bytes().to_vec()),
         &Bytes::default(),
     ).await?;
-    println!("-- TransactionMessage sent. ID: {}, tangle index: {:#}\n", msg_link, msg_link.to_msg_index());
+    println!("-- InteractionMessage sent. ID: {}, tangle index: {:#}\n", msg_link, msg_link.to_msg_index());
     prev_msg_link = msg_link;
 
     //--------------------------------------------------------------

@@ -1,5 +1,5 @@
 # TSG-event-system
-Trust score generator event/transaction prototype system and simulation.
+Trust score generator event/interaction prototype system and simulation.
 
 Most development was done first in these two forks:
 - https://github.com/kianfay/streams-examples/tree/FYP
@@ -61,7 +61,7 @@ Verdicts:
 
 Commentary:
 This outcome used the tsg_organization function, so each participant predicts the outcome and then
-generates the verdicts. This would obviously not be ideal for the nodes involved in the transaction,
+generates the verdicts. This would obviously not be ideal for the nodes involved in the interaction,
 who have hypothetially have complete knowledge about the outcome. Nonetheless, we examine their verdicts
 in the context of the organizations they are a part of. TN1 and WN2 are from one, and TN2 and WN1 are
 from another. We see that WN1 is responding dishonestly (randomly in this case) and instead of stating
