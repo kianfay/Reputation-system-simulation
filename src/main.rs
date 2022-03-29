@@ -9,19 +9,9 @@ mod evaluating_rep;
 async fn main() -> Result<()> {
     let url = "http://0.0.0.0:14265";
 
-/*     let sc = witness_rep::simulation::SimulationConfig {
-        node_url: String::from(url),
-        num_participants: 15,
-        average_proximity: 0.5,
-        witness_floor: 2,
-        runs: 30,
-        reliability: vec![0.8; 15],
-        reliability_threshold: vec![0.1; 15],
-        default_reliability: vec![0.5; 15],
-        organizations: vec![0,0,0,0,0,1,1,1,1,1,2,2,2,2,2]
-    };
+    evaluate_reliability_threshold_var(url).await?;
 
-    let mut ind_var_1: IndependantVar<IndependantVarPart> = IndependantVar {
+/*    let mut ind_var_1: IndependantVar<IndependantVarPart> = IndependantVar {
         sc: sc.clone(),
         independant_var: IndependantVarPart {
             independant_var: IndependantVarPartHollow::ReliabilityThreshold,
@@ -31,7 +21,7 @@ async fn main() -> Result<()> {
         }
     };
     let mut ind_var_2: IndependantVar<IndependantVarPart> = IndependantVar {
-        sc: sc,
+        sc: sc.clone(),
         independant_var: IndependantVarPart {
             independant_var: IndependantVarPartHollow::DefaultReliability,
             current_mean: 1,
@@ -40,19 +30,18 @@ async fn main() -> Result<()> {
         }
     };
     let optimal = find_optimal_two_fields(&mut ind_var_1, &mut ind_var_2).await?;
-    println!("{:?}", optimal); */
+    println!("{:?}", optimal);
 
-/*     let mut ind_var: IndependantVar<IndependantVarPart> = IndependantVar {
-        sc: sc,
+    let mut ind_var: IndependantVar<IndependantVarPart> = IndependantVar {
+        sc: sc.clone(),
         independant_var: IndependantVarPart {
             independant_var: IndependantVarPartHollow::DefaultReliability,
             current_mean: 40,
             current_std: 2,
             range: 40..60
         }
-    };
-    let optimal = find_optimal(&mut ind_var).await?;
-    println!("{:?}", optimal); */
+    }; */
+
     
 /*     // Run the quick simulation
     let sc = witness_rep::simulation::SimulationConfig {
@@ -73,7 +62,7 @@ async fn main() -> Result<()> {
     let mse = evaluating_rep::stats::run_avg_mean_squared_error(rel_map)?;
     println!("{}", mse); */
 
-    // Run the quick simulation
+/*     // Run the quick simulation
     let sc = witness_rep::simulation::SimulationConfig {
         node_url: String::from(url),
         num_participants: 15,
@@ -90,7 +79,7 @@ async fn main() -> Result<()> {
     // evaluate the results
     let rel_map = evaluating_rep::stats::read_reliabilities(dir_name, false)?;
     let mse = evaluating_rep::stats::run_avg_mean_squared_error(rel_map)?;
-    println!("{}", mse); 
+    println!("{}", mse);  */
 
 /*     let ann = "10a54dd01a48799c8def58b315a85b2aa62ccd3ca443c75350234054d11230160000000000000000:d5227ec97cc8597a471b9478";
     let seed = "Participant 0";
@@ -99,6 +88,168 @@ async fn main() -> Result<()> {
     println!("{:?}", branch_msgs[0]); */
 
     Ok(())
+}
+
+pub async fn evaluate_runs_var(url: &str) -> Result<()> {
+    let sc = witness_rep::simulation::SimulationConfig {
+        node_url: String::from(url),
+        num_participants: 15,
+        average_proximity: 0.5,
+        witness_floor: 2,
+        runs: 2,
+        reliability: vec![0.8; 15],
+        reliability_threshold: vec![0.1; 15],
+        default_reliability: vec![0.5; 15],
+        organizations: vec![0,0,0,0,0,1,1,1,1,1,2,2,2,2,2]
+    };
+
+    let mut ind_var_0: IndependantVar<IndependantVarApp> = IndependantVar {
+        sc: sc.clone(),
+        independant_var: IndependantVarApp {
+            independant_var: IndependantVarAppHollow::Runs(2..16)
+        }
+    };
+
+    let optimal = find_optimal(&mut ind_var_0).await?;
+    println!("{:?}", optimal);
+
+    return Ok(());
+}
+
+pub async fn evaluate_num_participants_var(url: &str) -> Result<()> {
+    let sc = witness_rep::simulation::SimulationConfig {
+        node_url: String::from(url),
+        num_participants: 4,
+        average_proximity: 0.5,
+        witness_floor: 2,
+        runs: 10,
+        reliability: vec![0.8; 4],
+        reliability_threshold: vec![0.1; 4],
+        default_reliability: vec![0.5; 4],
+        organizations: vec![0,1,2,3]
+    };
+
+    let mut ind_var_0: IndependantVar<IndependantVarApp> = IndependantVar {
+        sc: sc.clone(),
+        independant_var: IndependantVarApp {
+            independant_var: IndependantVarAppHollow::NumParticipants(4..16)
+        }
+    };
+
+    let optimal = find_optimal(&mut ind_var_0).await?;
+    println!("{:?}", optimal);
+
+    return Ok(());
+}
+
+pub async fn evaluate_witness_floor_var(url: &str) -> Result<()> {
+    let sc = witness_rep::simulation::SimulationConfig {
+        node_url: String::from(url),
+        num_participants: 15,
+        average_proximity: 0.6,
+        witness_floor: 2,
+        runs: 10,
+        reliability: vec![0.8; 15],
+        reliability_threshold: vec![0.1; 15],
+        default_reliability: vec![0.5; 15],
+        organizations: vec![0,0,0,0,0,1,1,1,1,1,2,2,2,2,2]
+    };
+
+    let mut ind_var_0: IndependantVar<IndependantVarApp> = IndependantVar {
+        sc: sc.clone(),
+        independant_var: IndependantVarApp {
+            independant_var: IndependantVarAppHollow::WitnessFloor(2..8)
+        }
+    };
+
+    let optimal = find_optimal(&mut ind_var_0).await?;
+    println!("{:?}", optimal);
+
+    return Ok(());
+}
+
+pub async fn evaluate_reliability_var(url: &str) -> Result<()> {
+    let sc = witness_rep::simulation::SimulationConfig {
+        node_url: String::from(url),
+        num_participants: 15,
+        average_proximity: 0.6,
+        witness_floor: 2,
+        runs: 10,
+        reliability: vec![0.8; 15],
+        reliability_threshold: vec![0.1; 15],
+        default_reliability: vec![0.5; 15],
+        organizations: vec![0,0,0,0,0,1,1,1,1,1,2,2,2,2,2]
+    };
+
+    let mut ind_var_0: IndependantVar<IndependantVarPart> = IndependantVar {
+        sc: sc.clone(),
+        independant_var: IndependantVarPart {
+            independant_var: IndependantVarPartHollow::Reliability,
+            current_mean: 0,
+            current_std: 10,
+            range: 0..100
+        }
+    };
+    let optimal = find_optimal(&mut ind_var_0).await?;
+    println!("{:?}", optimal);
+
+    return Ok(());
+}
+
+pub async fn evaluate_default_reliability_var(url: &str) -> Result<()> {
+    let sc = witness_rep::simulation::SimulationConfig {
+        node_url: String::from(url),
+        num_participants: 15,
+        average_proximity: 0.6,
+        witness_floor: 2,
+        runs: 10,
+        reliability: vec![0.8; 15],
+        reliability_threshold: vec![0.1; 15],
+        default_reliability: vec![0.5; 15],
+        organizations: vec![0,0,0,0,0,1,1,1,1,1,2,2,2,2,2]
+    };
+
+    let mut ind_var_0: IndependantVar<IndependantVarPart> = IndependantVar {
+        sc: sc.clone(),
+        independant_var: IndependantVarPart {
+            independant_var: IndependantVarPartHollow::DefaultReliability,
+            current_mean: 40,
+            current_std: 2,
+            range: 40..100
+        }
+    };
+    let optimal = find_optimal(&mut ind_var_0).await?;
+    println!("{:?}", optimal);
+
+    return Ok(());
+}
+
+pub async fn evaluate_reliability_threshold_var(url: &str) -> Result<()> {
+    let sc = witness_rep::simulation::SimulationConfig {
+        node_url: String::from(url),
+        num_participants: 15,
+        average_proximity: 0.6,
+        witness_floor: 2,
+        runs: 10,
+        reliability: vec![0.8; 15],
+        reliability_threshold: vec![0.1; 15],
+        default_reliability: vec![0.5; 15],
+        organizations: vec![0,0,0,0,0,1,1,1,1,1,2,2,2,2,2]
+    };
+
+    let mut ind_var_0: IndependantVar<IndependantVarPart> = IndependantVar {
+        sc: sc.clone(),
+        independant_var: IndependantVarPart {
+            independant_var: IndependantVarPartHollow::DefaultReliability,
+            current_mean: 40,
+            current_std: 2,
+            range: 40..100
+        }
+    };
+    let optimal = find_optimal(&mut ind_var_0).await?;
+    println!("{:?}", optimal);
+
+    return Ok(());
 }
 
 pub fn run_eval_with_arg() -> Result<()>{

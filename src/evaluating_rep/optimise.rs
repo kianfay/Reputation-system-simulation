@@ -176,6 +176,15 @@ pub fn get_next_config_app(
                 new_val = sc.num_participants + increments;
                 if !range.contains(&new_val) {return None;}
                 sc.num_participants = new_val;
+
+                // special case, needs other param changes
+                sc.reliability = vec![sc.reliability[0]; new_val];
+                sc.reliability_threshold = vec![sc.reliability_threshold[0]; new_val];
+                sc.default_reliability = vec![sc.default_reliability[0]; new_val];
+                sc.default_reliability = vec![sc.default_reliability[0]; new_val];
+                // this keeps distribution of organizations uniform
+                sc.organizations = vec![0; new_val].into_iter().map(|x| x % 4).collect();
+
             },
         IndependantVarAppHollow::AverageProximity(range) => 
             {
@@ -191,6 +200,7 @@ pub fn get_next_config_app(
             },
         IndependantVarAppHollow::Runs(range)             =>
             {
+                //println!("here");
                 new_val = sc.runs + increments;
                 if !range.contains(&new_val) {return None;}
                 sc.runs = new_val;
