@@ -40,7 +40,7 @@ async fn main() -> Result<()> {
         }
     };
     let optimal = find_optimal_two_fields(&mut ind_var_1, &mut ind_var_2).await?;
-    println!("{:?}", optimal); */
+    //println!("{:?}", optimal); */
 
 /*     let mut ind_var: IndependantVar<IndependantVarPart> = IndependantVar {
         sc: sc,
@@ -52,7 +52,7 @@ async fn main() -> Result<()> {
         }
     };
     let optimal = find_optimal(&mut ind_var).await?;
-    println!("{:?}", optimal); */
+    //println!("{:?}", optimal); */
     
 /*     // Run the quick simulation
     let sc = witness_rep::simulation::SimulationConfig {
@@ -71,7 +71,7 @@ async fn main() -> Result<()> {
     // evaluate the results
     let rel_map = evaluating_rep::stats::read_reliabilities(dir_name, false)?;
     let mse = evaluating_rep::stats::run_avg_mean_squared_error(rel_map)?;
-    println!("{}", mse); */
+    //println!("{}", mse); */
 
     // Run the quick simulation
     let sc = witness_rep::simulation::SimulationConfig {
@@ -90,13 +90,13 @@ async fn main() -> Result<()> {
     // evaluate the results
     let rel_map = evaluating_rep::stats::read_reliabilities(dir_name, false)?;
     let mse = evaluating_rep::stats::run_avg_mean_squared_error(rel_map)?;
-    println!("{}", mse); 
+    //println!("{}", mse); 
 
 /*     let ann = "10a54dd01a48799c8def58b315a85b2aa62ccd3ca443c75350234054d11230160000000000000000:d5227ec97cc8597a471b9478";
     let seed = "Participant 0";
     let channel_msgs = witness_rep::utility::read_msgs::read_msgs(url, ann, seed).await?;
     let branch_msgs = witness_rep::utility::extract_msgs::extract_msg(channel_msgs, witness_rep::utility::verify_tx::WhichBranch::LastBranch);
-    println!("{:?}", branch_msgs[0]); */
+    //println!("{:?}", branch_msgs[0]); */
 
     Ok(())
 }
@@ -105,6 +105,6 @@ pub fn run_eval_with_arg() -> Result<()>{
     let args: Vec<String> = env::args().collect();
     let rel_map = evaluating_rep::stats::read_reliabilities(args[1].clone(), true)?;
     let mse = evaluating_rep::stats::run_avg_mean_squared_error(rel_map)?;
-    println!("{}", mse);
+    //println!("{}", mse);
     return Ok(());
 }

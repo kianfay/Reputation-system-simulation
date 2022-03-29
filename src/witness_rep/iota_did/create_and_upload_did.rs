@@ -52,20 +52,20 @@ async fn create_and_upload_did(
         // Sign the DID Document with the default signing method.
         document.sign_self(keypair.private(), &document.default_signing_method()?.id())?;
 
-        println!("DID Document JSON > {:#}", document);
+        //println!("DID Document JSON > {:#}", document);
 
         // Publish the DID Document to the Tangle.
         let receipt: Receipt = client_map.publish_document(&document).await?;
 
-        println!("Publish Receipt > {:#?}", receipt);
+        //println!("Publish Receipt > {:#?}", receipt);
 
         // Display the web explorer url that shows the published message.
         let explorer: &ExplorerUrl = ExplorerUrl::mainnet();
-        println!(
+        /*println!(
             "DID Document Transaction > {}",
             explorer.message_url(receipt.message_id())?
-        );
-        println!("Explore the DID Document > {}", explorer.resolver_url(document.id())?);
+        );*/
+        //println!("Explore the DID Document > {}", explorer.resolver_url(document.id())?);
         
         return Ok((Some(document), (keypair, pub_and_sec), Some(receipt)));
     }

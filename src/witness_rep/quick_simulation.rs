@@ -52,7 +52,7 @@ pub async fn quick_simulation(
     let time: DateTime<Utc> = Utc::now();
     let folder_name = format!("./runs/Quick emmulation run {:?}", time);
     if print {
-        println!("{}", folder_name);
+        //println!("{}", folder_name);
     }
     fs::create_dir(&folder_name)?;
 
@@ -174,7 +174,7 @@ pub async fn quick_simulation(
     // generate the lazy methods (currenlty the first half of the runs are 
     // 'constant true' and the second half are 'random')
     if print {
-        println!("Generating lazy methods:");
+        //println!("Generating lazy methods:");
     }
     let lazy_methods: Vec<LazyMethod> = (0..sc.runs)
         .map(|_| {
@@ -187,12 +187,12 @@ pub async fn quick_simulation(
         }).collect::<Vec<LazyMethod>>()
         .try_into().expect("wrong size iterator");
     if print {
-        println!("-- Lazy methods to be used: {:?}\n", lazy_methods);
+        //println!("-- Lazy methods to be used: {:?}\n", lazy_methods);
     }
 
     let mut ran_fully = true;
     for i in 0..sc.runs {
-        println!("\n\n\n---------------------STARTING RUN {}---------------------", i);
+        //println!("\n\n\n---------------------STARTING RUN {}---------------------", i);
         //--------------------------------------------------------------
         // GENERATE GROUPS OF TRANSACATING NODES AND WITNESSES
         //--------------------------------------------------------------
@@ -208,7 +208,7 @@ pub async fn quick_simulation(
     
         let (mut transacting_clients, mut witness_clients) = match gen_op{
             None => {
-                println!("FAILED TO RUN");
+                //println!("FAILED TO RUN");
                 ran_fully = false;
                 continue;
             },
@@ -223,7 +223,7 @@ pub async fn quick_simulation(
         let init_tn_org_pk = &transacting_clients[0].id_info.org_cert.org_pubkey;
         let org_index = get_index_org_with_pubkey(&organizations, init_tn_org_pk);
         if print {
-            println!("\nRun under organization {}\n", organizations[org_index].identity.id_info.org_cert.client_pubkey);        
+            //println!("\nRun under organization {}\n", organizations[org_index].identity.id_info.org_cert.client_pubkey);        
         }
 
         //--------------------------------------------------------------
@@ -231,11 +231,11 @@ pub async fn quick_simulation(
         //--------------------------------------------------------------
 
         if print {
-            println!("Generating contract:");        
+            //println!("Generating contract:");        
         }
         let contract = generate_contract::generate_contract(&mut transacting_clients)?;
         if print {
-            println!("-- Contract generated\n");
+            //println!("-- Contract generated\n");
         }
 
         //--------------------------------------------------------------
@@ -297,8 +297,8 @@ pub async fn quick_simulation(
             part.update_reliability(tn_verdicts.clone());
             part.update_reliability(wn_verdicts.clone());
 
-            //println!("tn_verdicts: {:?}", tn_verdicts);
-            //println!("wn_verdicts: {:?}\n", wn_verdicts);
+            ////println!("tn_verdicts: {:?}", tn_verdicts);
+            ////println!("wn_verdicts: {:?}\n", wn_verdicts);
         }  
     }
 

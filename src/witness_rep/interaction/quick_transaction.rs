@@ -84,7 +84,7 @@ pub async fn quick_transact(
     // WITNESSES GENERATE SIGS
     //--------------------------------------------------------------
     if print {
-        println!("Witnesses generate their signatures:");
+        //println!("Witnesses generate their signatures:");
     }
     let mut witness_sigs: Vec<witness_sig::WitnessSig> = Vec::new();
     let mut witness_sigs_bytes: Vec<Vec<u8>> = Vec::new();
@@ -113,7 +113,7 @@ pub async fn quick_transact(
         witness_sigs_bytes.push(sig_bytes);
     }
     if print {
-        println!("-- Witness signatures generated\n");
+        //println!("-- Witness signatures generated\n");
     }
 
     //--------------------------------------------------------------
@@ -134,7 +134,7 @@ pub async fn quick_transact(
         .collect();
 
     if print {
-        println!("Transacting nodes generate their signatures:");
+        //println!("Transacting nodes generate their signatures:");
     }
     let mut transacting_sigs: Vec<interaction_sig::InteractionSig> = Vec::new();
     for i in 0..transacting_clients.len() {
@@ -158,7 +158,7 @@ pub async fn quick_transact(
         transacting_sigs.push(sig);
     }
     if print {
-        println!("-- Transacting node signatures generated\n");
+        //println!("-- Transacting node signatures generated\n");
     }
 
     //--------------------------------------------------------------
@@ -167,7 +167,7 @@ pub async fn quick_transact(
     //--------------------------------------------------------------
 
     if print {
-        println!("Initiating transacting node generates InteractionMessage:");
+        //println!("Initiating transacting node generates InteractionMessage:");
     }
     let interaction_msg = message::Message::InteractionMsg {
         contract: contract.clone(),
@@ -176,7 +176,7 @@ pub async fn quick_transact(
         tx_client_sigs: ArrayOfTxSignitures(transacting_sigs.clone()),
     };
     if print {
-        println!("-- InteractionMessage generated");
+        //println!("-- InteractionMessage generated");
     }
     
     //--------------------------------------------------------------
@@ -201,18 +201,18 @@ pub async fn quick_transact(
     // but only if the witnesses side with the dishonest node, thus jepordising the 
     // the conterparties trust score.
     if print {
-        println!("Assigning tranascting nodes as (dis)honest according to their reliability:");
+        //println!("Assigning tranascting nodes as (dis)honest according to their reliability:");
     }
     let honest_tranascting_ids = get_honest_nodes(transacting_reliablity, 1);
     if print {
-        println!("Assigning witnesses as (dis)honest according to their reliability:");
+        //println!("Assigning witnesses as (dis)honest according to their reliability:");
     }
     let honest_witness_ids = get_honest_nodes(witness_reliability, 0);
 
     // A vector of vectors, the inner a list of the outcomes per participant from
     // the witnesses point of view.
     if print {
-        println!("Witnesses decide on the outcome:");
+        //println!("Witnesses decide on the outcome:");
     }
     let mut outcomes: Vec<Vec<bool>> = vec![Vec::new(); honest_witness_ids.len()];
     for i in 0..honest_witness_ids.len() {
@@ -228,13 +228,13 @@ pub async fn quick_transact(
             // their dishonesty.
             if honesty_of_wn {
                 outcomes[i].push(honesty_of_tn);
-                println!("-- Witnesses {} responds honestly about transacting node {}", i, j);
+                //println!("-- Witnesses {} responds honestly about transacting node {}", i, j);
                 if print {
         
                 }
             } else {
                 outcomes[i].push(lazy_outcome(&lazy_method));
-                println!("-- Witnesses {} responds dishonestly about transacting node {}", i, j);
+                //println!("-- Witnesses {} responds dishonestly about transacting node {}", i, j);
                 if print {
         
                 }
@@ -242,7 +242,7 @@ pub async fn quick_transact(
         }
     }
     if print {
-        println!("");
+        //println!("");
     }
 
     //--------------------------------------------------------------
@@ -250,7 +250,7 @@ pub async fn quick_transact(
     //--------------------------------------------------------------
 
     if print {
-        println!("Witnesses generate and send their witness statements:");
+        //println!("Witnesses generate and send their witness statements:");
     }
     for i in 0..witness_clients.len(){
         // WN's prepares their statement
@@ -265,7 +265,7 @@ pub async fn quick_transact(
         messages.push(msg);
     }
     if print {
-        println!("");
+        //println!("");
     }
 
     //--------------------------------------------------------------
@@ -276,7 +276,7 @@ pub async fn quick_transact(
     // TODO - add read and choice
 
     if print {
-        println!("Transacting nodes send compensation:");
+        //println!("Transacting nodes send compensation:");
     }
     for i in 0..transacting_clients.len(){
 
@@ -299,7 +299,7 @@ pub async fn quick_transact(
         messages.push(msg);
     }
     if print {
-        println!("");
+        //println!("");
     }
     
     return Ok(Some((honest_tranascting_ids, honest_witness_ids, messages)));

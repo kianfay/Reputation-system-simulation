@@ -78,7 +78,7 @@ pub async fn simulation(
 
     let time: DateTime<Utc> = Utc::now();
     let folder_name = format!("./runs/Emmulation run {:?}", time);
-    println!("{}", folder_name);
+    //println!("{}", folder_name);
     fs::create_dir(&folder_name)?;
 
     
@@ -202,13 +202,13 @@ pub async fn simulation(
 
     // organizations (acting as authors) create the channels
     for i in 0..organizations.len(){
-        println!("Creating the channel for oranization {}:", i);
+        //println!("Creating the channel for oranization {}:", i);
         let announcement_link = organizations[i].identity.channel_client.send_announce().await?;
         let ann_link_string = announcement_link.to_string();
-        println!(
+        /*println!(
             "-- Announcement Link: {} Tangle Index: {:#}\n",
             ann_link_string, announcement_link.to_msg_index()
-        );
+        );*/
 
         // change the organization struct to include their channel announcement
         organizations[i].ann_msg = Some(ann_link_string);
@@ -217,7 +217,7 @@ pub async fn simulation(
 
     // generate the lazy methods (currenlty the first half of the runs are 
     // 'constant true' and the second half are 'random')
-    println!("Generating lazy methods:");
+    //println!("Generating lazy methods:");
     let lazy_methods: Vec<LazyMethod> = (0..sc.runs)
         .map(|_| {
             match rand_gen.gen_range(0,3) {
@@ -228,7 +228,7 @@ pub async fn simulation(
             }
         }).collect::<Vec<LazyMethod>>()
         .try_into().expect("wrong size iterator");
-    println!("-- Lazy methods to be used: {:?}\n", lazy_methods);
+    //println!("-- Lazy methods to be used: {:?}\n", lazy_methods);
 
     for i in 0..sc.runs {
         println!("\n\n\n---------------------STARTING RUN {}---------------------", i);
@@ -247,7 +247,7 @@ pub async fn simulation(
         ).await?;
 
         if !ran {
-            println!("FAILED TO RUN")
+            //println!("FAILED TO RUN")
         }
 
         participants = reset_clients(participants, client.clone())?;
@@ -309,16 +309,16 @@ pub async fn simulation_iteration(
     // get orgs' pubkey and find the org with that pubkey
     let init_tn_org_pk = &transacting_clients[0].id_info.org_cert.org_pubkey;
     let org_index = get_index_org_with_pubkey(&organizations, init_tn_org_pk);
-    println!("\nRun under organization {}\n", organizations[org_index].identity.id_info.org_cert.client_pubkey);
+    //println!("\nRun under organization {}\n", organizations[org_index].identity.id_info.org_cert.client_pubkey);
 
 
     //--------------------------------------------------------------
     // GENERATE CONTRACT
     //--------------------------------------------------------------
 
-    println!("Generating contract:");
+    //println!("Generating contract:");
     let contract = generate_contract::generate_contract(&mut transacting_clients)?;
-    println!("-- Contract generated\n");
+    //println!("-- Contract generated\n");
 
     //--------------------------------------------------------------
     // PERFORM THE INTERACTION WITH CONTRACT
@@ -374,7 +374,7 @@ pub async fn simulation_iteration(
     // participants update their reliability scores of each other
     let channel_msgs = read_msgs::read_msgs(node_url, ann_msg, org_seed).await?;
     let branch_msgs = extract_msgs::extract_msg(channel_msgs, verify_tx::WhichBranch::LastBranch);
-    //println!("HHHHEERREEE: {:?}", branch_msgs);
+    ////println!("HHHHEERREEE: {:?}", branch_msgs);
     let parsed_msgs = parse_messages::parse_messages(&branch_msgs)?;
     for part in participants.into_iter() {
         let (tn_verdicts, wn_verdicts) = tsg_organization(
@@ -387,8 +387,8 @@ pub async fn simulation_iteration(
         part.update_reliability(tn_verdicts.clone());
         part.update_reliability(wn_verdicts.clone());
 
-        //println!("tn_verdicts: {:?}", tn_verdicts);
-        //println!("wn_verdicts: {:?}\n", wn_verdicts);
+        ////println!("tn_verdicts: {:?}", tn_verdicts);
+        ////println!("wn_verdicts: {:?}\n", wn_verdicts);
     }
 
     return Ok(true);
@@ -428,7 +428,7 @@ pub fn generate_trans_and_witnesses(
     // witnesses. We must work with indexes instead of actual objects to removing potential
     // witnesses from the list for transacting nodes of indices larger than 0
     if print{
-        println!("Selecting participants to be transacting nodes and witnesses:");
+        //println!("Selecting participants to be transacting nodes and witnesses:");
     }
     let mut main_set_of_witnesses: BTreeSet<usize> = BTreeSet::new();
     for i in 0.. {
@@ -440,31 +440,31 @@ pub fn generate_trans_and_witnesses(
         let mut tn_witnesses_lists: Vec<Vec<usize>> = Vec::new();
         for i in 0..transacting_clients.len(){
             if print{
-                println!("-- Transacting node {} is finding witnesses:", i);
+                //println!("-- Transacting node {} is finding witnesses:", i);
             }
             let mut tn_witnesses: Vec<usize> = Vec::new();
 
             for j in 0..participants.len(){
                 let rand: f32 = rand_gen.gen();
                 if print{
-                    println!("---- Trying participant {}. Rand={}. Avg proximity={}", j, rand, average_proximity);
+                    //println!("---- Trying participant {}. Rand={}. Avg proximity={}", j, rand, average_proximity);
                 }
                 if average_proximity > rand {
                     if print{
-                        println!("---- Checking participant {}'s reliability", j);
+                        //println!("---- Checking participant {}'s reliability", j);
                     }
                     let potential_wn_pk = participants[j].id_info.org_cert.client_pubkey.clone();
                     if transacting_clients[i].check_participant(&potential_wn_pk){
                         tn_witnesses.push(j);
                         if print{
-                            println!("------ Participant {} added", j);
+                            //println!("------ Participant {} added", j);
                         }
                     }
                 }
             }
 
             if print{
-                println!("---- Found witnesses at indices: {:?}\n", tn_witnesses);
+                //println!("---- Found witnesses at indices: {:?}\n", tn_witnesses);
             }
             tn_witnesses_lists.push(tn_witnesses);
         }
@@ -483,7 +483,7 @@ pub fn generate_trans_and_witnesses(
             main_set_of_witnesses = main_set_of_witnesses.intersection(&set_of_witnesses).cloned().collect();
         }
 
-        println!("-- Final list of witness indices: {:?}", main_set_of_witnesses);
+        //println!("-- Final list of witness indices: {:?}", main_set_of_witnesses);
 
         if main_set_of_witnesses.len() >= witness_floor {
             break;

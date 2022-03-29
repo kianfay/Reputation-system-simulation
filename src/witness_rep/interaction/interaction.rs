@@ -97,16 +97,16 @@ pub fn get_honest_nodes(participants_reliablity: Vec<f32>, offset: usize) -> Vec
 
         // randomly assert if they are acting honest based on their reliability
         let rand: f32 = rand::thread_rng().gen();
-        println!("-- Trying participant {}. Rand={}", i, rand);
+        //println!("-- Trying participant {}. Rand={}", i, rand);
         let acting_honest: bool = participants_reliablity[i] > rand;
         if !acting_honest {
             honest_nodes[i] = false;
-            println!("---- Participant {} set to dishonest", i);
+            //println!("---- Participant {} set to dishonest", i);
         } else {
-            println!("---- Participant {} set to honest", i);
+            //println!("---- Participant {} set to honest", i);
         }
     }
-    println!("");
+    //println!("");
 
     return honest_nodes;
 }
@@ -116,7 +116,7 @@ pub fn lazy_outcome(lazy_method: &LazyMethod) -> bool {
         LazyMethod::Constant(output) => output.clone(),
         LazyMethod::Random => {
             let rand: f32 = rand::thread_rng().gen();
-            println!("-- Trying lazy outcome. Rand={}", rand);
+            //println!("-- Trying lazy outcome. Rand={}", rand);
             if rand > 0.5 {
                 true
             } else {
@@ -167,7 +167,7 @@ pub async fn transact(
 
 
     // participants process the channel announcement
-    println!("Participants subscribe to channel if not already subscribed:");
+    //println!("Participants subscribe to channel if not already subscribed:");
     let ann_address = Address::try_from_bytes(&announcement_link.to_bytes())?;
     for i in 0..transacting_clients.len() {
         transacting_clients[i].receive_announcement(&ann_address).await?;
@@ -177,7 +177,7 @@ pub async fn transact(
         // either the subscribe works and the program continues, or it doesnt because
         // the author already has the tn as a subscriber and the program continues
         match sub_result {
-            Ok(()) => {println!("-- Transacting node {} is now subscribed", i);},
+            Ok(()) => {/*println!("-- Transacting node {} is now subscribed", i);*/},
             Err(_) => {},
         };
     }
@@ -187,22 +187,22 @@ pub async fn transact(
         let sub_result = organization_id.identity.channel_client.receive_subscribe(&subscribe_msg).await;
 
         match sub_result {
-            Ok(()) => {println!("-- Witness {} is now subscribed", i);},
+            Ok(()) => {/*println!("-- Witness {} is now subscribed", i);*/},
             Err(_) => {},
         };
     }
-    println!("");
+    //println!("");
 
-    println!("Organization sends keyload message to these clients:");
+    //println!("Organization sends keyload message to these clients:");
     let (keyload_a_link, _seq_a_link) =
     organization_id.identity.channel_client.send_keyload_for_everyone(&announcement_link).await?;
-    println!("-- Keyload sent\n");
+    //println!("-- Keyload sent\n");
 
     //--------------------------------------------------------------
     // WITNESSES GENERATE SIGS
     //--------------------------------------------------------------
 
-    println!("Witnesses generate their signatures:");
+    //println!("Witnesses generate their signatures:");
     let mut witness_sigs: Vec<witness_sig::WitnessSig> = Vec::new();
     let mut witness_sigs_bytes: Vec<Vec<u8>> = Vec::new();
 
@@ -229,7 +229,7 @@ pub async fn transact(
         let sig_bytes = sig.signature;
         witness_sigs_bytes.push(sig_bytes);
     }
-    println!("-- Witness signatures generated\n");
+    //println!("-- Witness signatures generated\n");
 
     //--------------------------------------------------------------
     // TRANSACTING NODES GENERATE SIGS
@@ -248,7 +248,7 @@ pub async fn transact(
         })
         .collect();
 
-    println!("Transacting nodes generate their signatures:");
+    //println!("Transacting nodes generate their signatures:");
     let mut transacting_sigs: Vec<interaction_sig::InteractionSig> = Vec::new();
     for i in 0..transacting_clients.len() {
         let multibase_pub = MethodData::new_multibase(transacting_clients[i].get_public_key());
@@ -270,21 +270,21 @@ pub async fn transact(
         )?;
         transacting_sigs.push(sig);
     }
-    println!("-- Transacting node signatures generated\n");
+    //println!("-- Transacting node signatures generated\n");
 
     //--------------------------------------------------------------
     // INITIATING TN, HAVING REVEIVED THE SIGNATURES, 
     // BUILD FINAL TRANSACTION (TN = TRANSACTING NODE)
     //--------------------------------------------------------------
 
-    println!("Initiating transacting node generates InteractionMessage:");
+    //println!("Initiating transacting node generates InteractionMessage:");
     let interaction_msg = message::Message::InteractionMsg {
         contract: contract.clone(),
         witnesses: WitnessClients(witnesses.clone()),
         wit_node_sigs: ArrayOfWnSignitures(witness_sigs.clone()),
         tx_client_sigs: ArrayOfTxSignitures(transacting_sigs.clone()),
     };
-    println!("-- InteractionMessage generated");
+    //println!("-- InteractionMessage generated");
     
     //--------------------------------------------------------------
     // INITIATING TN SENDS THE INTERACTION MESSAGE
@@ -296,11 +296,11 @@ pub async fn transact(
     let tx_message = vec![
         tx_msg_str
     ];
-    println!("-- InteractionMessage serialized\n");
+    //println!("-- InteractionMessage serialized\n");
 
 
     // TN_A sends the interaction
-    println!("Initiating transacting node sends InteractionMessage:");
+    //println!("Initiating transacting node sends InteractionMessage:");
     let mut prev_msg_link = keyload_a_link;
     sync_all(&mut transacting_clients).await?;
     sync_all(&mut witness_clients).await?;
@@ -309,7 +309,7 @@ pub async fn transact(
         &Bytes(tx_message[0].as_bytes().to_vec()),
         &Bytes::default(),
     ).await?;
-    println!("-- InteractionMessage sent. ID: {}, tangle index: {:#}\n", msg_link, msg_link.to_msg_index());
+    //println!("-- InteractionMessage sent. ID: {}, tangle index: {:#}\n", msg_link, msg_link.to_msg_index());
     prev_msg_link = msg_link;
 
     //--------------------------------------------------------------
@@ -323,14 +323,14 @@ pub async fn transact(
     // being, the counterparty may still compensate them even if they act dishonestly,
     // but only if the witnesses side with the dishonest node, thus jepordising the 
     // the conterparties trust score.
-    println!("Assigning tranascting nodes as (dis)honest according to their reliability:");
+    //println!("Assigning tranascting nodes as (dis)honest according to their reliability:");
     let honest_tranascting_ids = get_honest_nodes(transacting_reliablity, 1);
-    println!("Assigning witnesses as (dis)honest according to their reliability:");
+    //println!("Assigning witnesses as (dis)honest according to their reliability:");
     let honest_witness_ids = get_honest_nodes(witness_reliability, 0);
 
     // A vector of vectors, the inner a list of the outcomes per participant from
     // the witnesses point of view.
-    println!("Witnesses decide on the outcome:");
+    //println!("Witnesses decide on the outcome:");
     let mut outcomes: Vec<Vec<bool>> = vec![Vec::new(); honest_witness_ids.len()];
     for i in 0..honest_witness_ids.len() {
         let honesty_of_wn = honest_witness_ids[i];
@@ -345,20 +345,20 @@ pub async fn transact(
             // their dishonesty.
             if honesty_of_wn {
                 outcomes[i].push(honesty_of_tn);
-                println!("-- Witnesses {} responds honestly about transacting node {}", i, j);
+                //println!("-- Witnesses {} responds honestly about transacting node {}", i, j);
             } else {
                 outcomes[i].push(lazy_outcome(&lazy_method));
-                println!("-- Witnesses {} responds dishonestly about transacting node {}", i, j);
+                //println!("-- Witnesses {} responds dishonestly about transacting node {}", i, j);
             }
         }
     }
-    println!("");
+    //println!("");
 
     //--------------------------------------------------------------
     // WITNESSES SEND THEIR STATMENTS
     //--------------------------------------------------------------
 
-    println!("Witnesses generate and send their witness statements:");
+    //println!("Witnesses generate and send their witness statements:");
     for i in 0..witness_clients.len(){
         // WN's prepares their statement
         let wn_statement = message::Message::WitnessStatement {
@@ -379,10 +379,10 @@ pub async fn transact(
             &Bytes(witness_message[0].as_bytes().to_vec()),
             &Bytes::default(),
         ).await?;
-        println!("-- Witness {} sent statement: ID: {}, tangle index: {:#}", i, msg_link, msg_link.to_msg_index());
+        //println!("-- Witness {} sent statement: ID: {}, tangle index: {:#}", i, msg_link, msg_link.to_msg_index());
         prev_msg_link = msg_link;
     }
-    println!("");
+    //println!("");
 
     //--------------------------------------------------------------
     // THE PARTICIPANTS READ THE STATEMENTS AND DECIDE TO COMPENSATE
@@ -391,7 +391,7 @@ pub async fn transact(
 
     // TODO - add read and choice
 
-    println!("Transacting nodes send compensation:");
+    //println!("Transacting nodes send compensation:");
     for i in 0..transacting_clients.len(){
 
         // TODO - certain TNs need to compensate other TNs
@@ -420,16 +420,16 @@ pub async fn transact(
             &Bytes(compensation_tx[0].as_bytes().to_vec()),
             &Bytes::default(),
         ).await?;
-        println!("-- Transacting node {} sent compensation: ID: {}, tangle index: {:#}", i, msg_link, msg_link.to_msg_index());
+        //println!("-- Transacting node {} sent compensation: ID: {}, tangle index: {:#}", i, msg_link, msg_link.to_msg_index());
         prev_msg_link = msg_link;
     }
-    println!("");
+    //println!("");
 
     //--------------------------------------------------------------
     // THE PARTICIPANTS UNREGISTER SO THAT THEY CAN SUB TO OTHER CHANNELS
     //--------------------------------------------------------------
 
-    println!("Participants unregister from channel:");
+    //println!("Participants unregister from channel:");
     for i in 0..transacting_clients.len() {
         transacting_clients[i].reset_state()?;
         transacting_clients[i].unregister();
@@ -439,7 +439,7 @@ pub async fn transact(
         witness_clients[i].reset_state()?;
         witness_clients[i].unregister();
     }
-    println!("-- All participants unregistered");
+    //println!("-- All participants unregistered");
     
     return Ok((honest_tranascting_ids, honest_witness_ids));
 }

@@ -26,8 +26,8 @@ pub fn run_avg_mean_squared_error(rel_map: ReliabilityMap) -> Result<f32> {
 
     let true_arr: Array = Array::from(true_rels.clone());
     let estm_arr: Array = Array::from(estm_rels.clone());
-/*     println!("{:?}", true_rels);
-    println!("{:?}", estm_rels); */
+/*     //println!("{:?}", true_rels);
+    //println!("{:?}", estm_rels); */
 
     let mse = mean_squared_error(&true_arr, &estm_arr);
     return Ok(mse)
@@ -44,7 +44,7 @@ pub fn read_reliabilities(dir_name: String, use_arg: bool) -> Result<Reliability
         file_name_start = format!("{}/start_reliability.txt", dir_name);
         file_name_end = format!("{}/reliability_maps.txt", dir_name);
     }
-    println!("{}", file_name_start);
+    //println!("{}", file_name_start);
     let start_rels = fs::read_to_string(file_name_start)?;
     let end_rels = fs::read_to_string(file_name_end)?;
 

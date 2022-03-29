@@ -116,7 +116,7 @@ where C: SCIterator
         }
     }
 
-    println!("{:?}", &results);
+    //println!("{:?}", &results);
     let optimal = results
         .into_iter()
         .reduce(|(x_accum, y_accum), (x_cur, y_cur)| {
@@ -208,7 +208,7 @@ pub fn get_next_config_app(
                     .map(|x| x as f32)
                     .collect();
                 
-                    println!("{:?}", reliabilities);
+                    //println!("{:?}", reliabilities);
                 
                 sc.reliability = reliabilities;
 
@@ -236,7 +236,7 @@ pub fn get_next_config_part(
         .take(sc.num_participants)
         .map(|x| x as f32)
         .collect();
-    //println!("{:?}", reliabilities);
+    ////println!("{:?}", reliabilities);
 
     // update the IndependantVarPart
     ind_var.current_mean = new_mean;
@@ -287,7 +287,7 @@ pub fn test_sc_iterator() {
 
     let mut rels: Vec<Vec<f32>> = Vec::new();
     for _ in 0..19 {
-        //println!("SC: {:?}\n", ind_var.next().unwrap().reliability);
+        ////println!("SC: {:?}\n", ind_var.next().unwrap().reliability);
         rels.push(ind_var.next().unwrap().reliability);
     }
     let avg_rels: Vec<f32> = rels.iter().map(|v| v.iter().sum()).collect();
