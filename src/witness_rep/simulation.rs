@@ -2,12 +2,12 @@ use crate::witness_rep::{
     iota_did::create_and_upload_did::{create_n_dids, Key, RunMode},
     interaction::{generate_contract, generate_sigs},
     interaction::{
-        interaction::{transact, LazyMethod},
-        participant::{
-            ParticipantIdentity, OrganizationIdentity,
-            IdInfo, ReliabilityMap, Identity, get_index_org_with_pubkey}
+        interaction::{interaction, LazyMethod},
+        user_and_organization::{
+            UserIdentity, OrganizationIdentity,
+            IdInfo, ReputationMap, Identity, get_index_org_with_pubkey}
     },
-    utility::{verify_tx, read_msgs, extract_msgs},
+    utility::{verify_interaction, read_msgs, extract_msgs},
 };
 
 use trust_score_generator::trust_score_generators::{
@@ -123,7 +123,7 @@ pub async fn simulation(
         let on: Author<Tangle> = Author::new(seed, ChannelType::MultiBranch, client.clone());
         let repeat_kp = KeyPair::try_from_ed25519_bytes(&sec)?;
         let pubkey =  generate_sigs::get_multibase(&repeat_kp);
-        let reliability_map: ReliabilityMap = HashMap::new();
+        let reliability_map: ReputationMap = HashMap::new();
 
         let org_id: Identity<Author<Client>> = Identity{
             channel_client: on,
@@ -167,15 +167,15 @@ pub async fn simulation(
 
     // create channel subscriber instances
     let mut output: String = String::new();
-    let mut participants: &mut Vec<ParticipantIdentity> = &mut Vec::new();
+    let mut participants: &mut Vec<UserIdentity> = &mut Vec::new();
     for i in 0..sc.num_participants{
         let name = format!("Participant {}", i);
         let tn = Subscriber::new(&name, client.clone());
         let org_kp = &org_kp_map[&sc.organizations[i]];
         let part_did_pk = generate_sigs::get_multibase(&part_did_kps[i]);
-        let reliability_map: ReliabilityMap = HashMap::new();
+        let reliability_map: ReputationMap = HashMap::new();
 
-        let id = ParticipantIdentity {
+        let id = UserIdentity {
             channel_client: tn,
             seed: name,
             id_info: IdInfo {
@@ -271,7 +271,7 @@ pub async fn simulation(
 // Runs a single iteration of a simualtion
 pub async fn simulation_iteration(
     organizations: &mut Vec<OrganizationIdentity>,
-    mut participants: &mut Vec<ParticipantIdentity>,
+    mut participants: &mut Vec<UserIdentity>,
     average_proximity: f32,
     witness_floor: usize,
     lazy_method: LazyMethod,
@@ -317,14 +317,14 @@ pub async fn simulation_iteration(
     //--------------------------------------------------------------
 
     println!("Generating contract:");
-    let contract = generate_contract::generate_contract(&mut transacting_clients)?;
+    let contract = generate_contract::generate_exchange_contract(&mut transacting_clients)?;
     println!("-- Contract generated\n");
 
     //--------------------------------------------------------------
     // PERFORM THE INTERACTION WITH CONTRACT
     //--------------------------------------------------------------
 
-    let (tn_honesty, wn_honesty) = transact(
+    let (tn_honesty, wn_honesty) = interaction(
         contract,
         &mut transacting_clients,
         &mut witness_clients,
@@ -344,9 +344,9 @@ pub async fn simulation_iteration(
     // verify the interaction
     let ann_msg = &organizations[org_index].ann_msg.as_ref().unwrap();
     let org_seed = &organizations[org_index].seed;
-    let branches = verify_tx::WhichBranch::LastBranch;
+    let branches = verify_interaction::WhichBranch::LastBranch;
     let channel_msgs = read_msgs::read_msgs(node_url, ann_msg, org_seed).await?;
-    let (verified, msgs, pks) = verify_tx::verify_txs(channel_msgs, branches).await?;
+    let (verified, msgs, pks) = verify_interaction::verify_interaction(channel_msgs, branches).await?;
 
     if !verified {
         panic!("One of the messages could not be verified");
@@ -373,7 +373,7 @@ pub async fn simulation_iteration(
 
     // participants update their reliability scores of each other
     let channel_msgs = read_msgs::read_msgs(node_url, ann_msg, org_seed).await?;
-    let branch_msgs = extract_msgs::extract_msg(channel_msgs, verify_tx::WhichBranch::LastBranch);
+    let branch_msgs = extract_msgs::extract_msg(channel_msgs, verify_interaction::WhichBranch::LastBranch);
     //println!("HHHHEERREEE: {:?}", branch_msgs);
     let parsed_msgs = parse_messages::parse_messages(&branch_msgs)?;
     for part in participants.into_iter() {
@@ -391,22 +391,38 @@ pub async fn simulation_iteration(
         //println!("wn_verdicts: {:?}\n", wn_verdicts);
     }
 
+    // do the same for organizations
+    for org in organizations.into_iter() {
+        let (tn_verdicts, wn_verdicts) = tsg_organization(
+            parsed_msgs.clone(),
+            org.identity.id_info.org_cert.org_pubkey.clone(),
+            0.5
+        );
+
+        // add the new verdicts to the reliability map
+        org.identity.update_reliability(tn_verdicts.clone());
+        org.identity.update_reliability(wn_verdicts.clone());
+
+        //println!("tn_verdicts: {:?}", tn_verdicts);
+        //println!("wn_verdicts: {:?}\n", wn_verdicts);
+    }
+
     return Ok(true);
 }
 
 // Generates the transacting nodes and the witnesses for the next simulation.
 // Will return None if no witnesses can be found after max_tries
 pub fn generate_trans_and_witnesses(
-    participants: &mut Vec<ParticipantIdentity>,
+    participants: &mut Vec<UserIdentity>,
     average_proximity: f32,
     witness_floor: usize,
     rand_gen: &mut rand::prelude::ThreadRng,
     max_tries: usize,
     print: bool
-) -> Result<Option<(Vec<ParticipantIdentity>,Vec<ParticipantIdentity>)>> {
+) -> Result<Option<(Vec<UserIdentity>,Vec<UserIdentity>)>> {
 
-    let mut transacting_clients: Vec<ParticipantIdentity> = Vec::new();
-    let mut witness_clients: Vec<ParticipantIdentity> = Vec::new();
+    let mut transacting_clients: Vec<UserIdentity> = Vec::new();
+    let mut witness_clients: Vec<UserIdentity> = Vec::new();
 
     // we select the initiating transacting participant as the first participant
     transacting_clients.push(participants.remove(0));
@@ -500,9 +516,9 @@ pub fn generate_trans_and_witnesses(
 }
 
 pub fn reset_clients(
-    participants: &mut Vec<ParticipantIdentity>,
+    participants: &mut Vec<UserIdentity>,
     client: Client
-) -> Result<&mut Vec<ParticipantIdentity>> {
+) -> Result<&mut Vec<UserIdentity>> {
     for i in 0..participants.len(){
         let new_client = Subscriber::new(&participants[i].seed, client.clone());
         participants[i].channel_client = new_client;

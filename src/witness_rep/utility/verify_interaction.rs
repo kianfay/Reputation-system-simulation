@@ -2,10 +2,12 @@ use crate::witness_rep::{
     utility::{extract_msgs}
 };
 
-use trust_score_generator::trust_score_generators::{
+use trust_score_generator::{
     data_types::{
-        messages::{
-            tx_messages as message,
+        event_protocol_messages::{
+            application_constructs::application_messages::exchange_app_messages::CompensationMsg,
+            event_protocol_messages::{ApplicationMsg, Contract},
+            event_protocol_messages as message,
             signatures::{
                 witness_sig, interaction_sig
             },
@@ -37,10 +39,13 @@ pub enum WhichBranch {
     LastBranch
 }
 
-/// Returns whether the interaction's msgs were valid, the messages, and the channel pks which signed the msgs
-pub async fn verify_txs(
+/// Returns whether the interaction's msgs were valid, the messages
+/// and the channel pks which signed the msgs. Depending on the application
+/// the contract format differs as well as the possible messages
+pub async fn verify_interaction(
     msgs: Vec<UnwrappedMessage>,
-    branches: WhichBranch
+    branches: WhichBranch,
+    application: String
 ) -> Result<(bool, Vec<String>, Vec<String>)> {
     
     let msgs = extract_msgs::extract_msg(msgs, branches);
@@ -51,11 +56,12 @@ pub async fn verify_txs(
     let only_msgs = msgs.iter().map(|(msg, _)| msg.clone()).collect();
     let only_pks = msgs.iter().map(|(_, pk)| pk.clone()).collect();
 
-    // parse the string into the InteractionMsg/WitnessStatement/CompensationMsg format and check if valid
+    // parse the string into the InteractionMsg/WitnessStatement/CompensationMsg
+    // format and check if valid
     let mut valid_pks: Vec<PublickeyOwner> = Vec::new();
     for (cur_msg, pk) in msgs.iter() {
         let deserialised_msg: message::Message = serde_json::from_str(cur_msg.as_str())?;
-        let verified = verify_msg((deserialised_msg,pk), valid_pks.clone())?;
+        let verified = verify_msg((deserialised_msg,pk), valid_pks.clone(), application.clone())?;
 
         let final_verify = match verified {
             (true, Some(ret_pk))=> {
@@ -78,22 +84,38 @@ pub async fn verify_txs(
 }
 
 /// Accepts a tuple of a message content and the sender's channel public key.
-/// If it is a valid InteractionMsg, it will return true and a valid channel public keys and it's ownership
-pub fn verify_msg( (tx_msg,channel_pk) : (message::Message, &String), mut valid_pks: Vec<PublickeyOwner>) -> Result<(bool, Option<Vec<PublickeyOwner>>)> {
+/// If it is a valid InteractionMsg, it will return true and a valid channel
+/// public keys and it's ownership
+pub fn verify_msg( 
+    (tx_msg,channel_pk) : (message::Message, &String), 
+    mut valid_pks: Vec<PublickeyOwner>,
+    application: String
+) -> Result<(bool, Option<Vec<PublickeyOwner>>)> {
     match tx_msg {
         message::Message::InteractionMsg {
             contract, witnesses, wit_node_sigs, tx_client_sigs
         } => {
             let tx_msg = message::Message::InteractionMsg {contract, witnesses, wit_node_sigs, tx_client_sigs};
             let (message::ArrayOfWnSignitures(wit_sigs), message::ArrayOfTxSignitures(tn_sigs)) = get_sigs(tx_msg);
-            
+
+            // check that the contract is as defined in the application
+            match contract {
+                Contract::ExchangeApplication(_) => {
+                    if application != "ExchangeApplication" {
+                        panic!("Interaction signature verification failed")
+                    }
+                }
+            }
+
+            // store the witness sigs to check the interaction sigs
             let mut witness_sigs: Vec<Vec<u8>> = Vec::new();
+
             // Check that each witness sig is valid, meaning it was sent by the owner of the DID,
             // not just any person who holds the public key of the DID
             for ws in wit_sigs.iter() {
-                let (verified, pk, sig) = verify_witness_sig(ws.clone())?;
+                let (verified, pk, sig) = verify_witness_sig(ws.clone(), Some(contract))?;
                 if !verified {
-                    panic!("Signature verification failed")
+                    panic!("Interaction signature verification failed")
                 } else {
                     valid_pks.push(PublickeyOwner::Witness(pk));
                     witness_sigs.push(sig);
@@ -108,9 +130,9 @@ pub fn verify_msg( (tx_msg,channel_pk) : (message::Message, &String), mut valid_
             // agreeing to have a witness witness the event.
             witness_sigs.sort();
             for ts in tn_sigs.iter() {
-                let (verified, pk) = verify_tx_sig(ts.clone(), witness_sigs.clone())?;
+                let (verified, pk) = verify_interaction_sig(ts.clone(), Some(contract), witness_sigs.clone())?;
                 if !verified {
-                    panic!("Signature verification failed")
+                    panic!("Witness signature verification failed")
                 } else {
                     valid_pks.push(PublickeyOwner::TransactingNode(pk));
                 }
@@ -125,12 +147,24 @@ pub fn verify_msg( (tx_msg,channel_pk) : (message::Message, &String), mut valid_
                 return Ok((true, None));
             }
         },
-        message::Message::CompensationMsg {
-            payments: _
-        } => {
-            let wrapped_channel_pk = PublickeyOwner::TransactingNode(channel_pk.clone());
-            if valid_pks.contains(&wrapped_channel_pk) {
-                return Ok((true, None));
+        message::Message::ApplicationMsg(app_msg) => {
+            match app_msg {
+                ApplicationMsg::ExchangeApplication( 
+                    CompensationMsg {
+                        payments: _
+                    }
+                ) => {
+                    // ensures that this message belongs in the current application
+                    if application != "ExchangeApplication" {
+                        panic!("Witness signature verification failed")
+                    }
+
+                    // ensures that a participant sent this message
+                    let wrapped_channel_pk = PublickeyOwner::TransactingNode(channel_pk.clone());
+                    if valid_pks.contains(&wrapped_channel_pk) {
+                        return Ok((true, None));
+                    }
+                }
             }
         }
     }
@@ -154,7 +188,8 @@ pub fn get_sigs(
 /// Returns a bool indicating if valid, and a string of the channel pubkey of this sub,
 /// and the sig bytes
 pub fn verify_witness_sig(
-    sig: witness_sig::WitnessSig
+    sig: witness_sig::WitnessSig,
+    interaction_contract: Option<Contract>,
 ) -> Result<(bool, String, Vec<u8>)>{
     match sig {
         witness_sig::WitnessSig {
@@ -178,16 +213,28 @@ pub fn verify_witness_sig(
             let decoded_pubkey = MethodData::try_decode(&signer_did_pubkey)?;
             let sig_unsigned = Ed25519::verify(pre_sig.as_bytes(), &signature, &decoded_pubkey);
             if let Ok(()) = sig_unsigned {
-                return Ok((true,signer_channel_pubkey,signature));
-            } else {
-                panic!("Signature verification failed")
+                // check the contract
+                match interaction_contract {
+                    Some(c) => {
+                        if c == contract {
+                            return Ok((true,signer_channel_pubkey,signature));
+                        }
+                    },
+                    None => return Ok((true,signer_channel_pubkey,signature))
+                }
+                
             }
+            panic!("Signature verification failed")
         }
     }
 }
 
 // returns a bool indicating if valid, and a string of the channel pubkey of this sub
-pub fn verify_tx_sig(sig: interaction_sig::InteractionSig, sorted_witness_sigs: Vec<Vec<u8>>) -> Result<(bool, String)>{
+pub fn verify_interaction_sig(
+    sig: interaction_sig::InteractionSig,
+    interaction_contract: Option<Contract>,
+    sorted_witness_sigs: Vec<Vec<u8>>
+)-> Result<(bool, String)>{
     match sig {
         interaction_sig::InteractionSig {
             contract,
@@ -226,10 +273,18 @@ pub fn verify_tx_sig(sig: interaction_sig::InteractionSig, sorted_witness_sigs: 
             let decoded_pubkey = MethodData::try_decode(&signer_did_pubkey)?;
             let sig_unsigned = Ed25519::verify(pre_sig.as_bytes(), &signature, &decoded_pubkey);
             if let Ok(()) = sig_unsigned {
-                return Ok((true,signer_channel_pubkey));
-            } else {
-                panic!("Signature verification failed")
+                match interaction_contract {
+                    Some(c) => {
+                        if c == contract {
+                            return Ok((true,signer_channel_pubkey));
+                        }
+                    },
+                    None => return Ok((true,signer_channel_pubkey))
+                }
+                
             }
+            panic!("Signature verification failed")
+
         }
     }
 }

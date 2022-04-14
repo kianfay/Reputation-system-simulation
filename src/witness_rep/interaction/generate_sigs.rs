@@ -1,11 +1,11 @@
 use trust_score_generator::trust_score_generators::{
     data_types::{
-        messages::{
-            contract::{Contract},
+        event_protocol_messages::{
+            event_protocol_messages::Contract,
             signatures::{
-                witness_sig, interaction_sig, organization_cert
+                witness_sig, interaction_sig, organization_cert,
             },
-            tx_messages::WitnessClients
+            contracts::utility_types::WitnessUsers
         }
     },
 };
@@ -57,7 +57,7 @@ pub fn generate_transacting_sig(
     contract: Contract,
     channel_pk_as_multibase: String,
     did_keypair: KeyPair,
-    witnesses: WitnessClients,
+    witnesses: WitnessUsers,
     witness_sigs: interaction_sig::ArrayOfWnSignituresBytes,
     org_cert: organization_cert::OrgCert,
     timeout: u32
@@ -100,7 +100,7 @@ pub fn generate_org_cert(
 ) -> Result<organization_cert::OrgCert>{
     let pre_sig = organization_cert::OrgCertPreSig {
         client_pubkey: client_pubkey.clone(),
-        duration: timeout
+        timeout: timeout
     };
     let pre_sig_bytes = serde_json::to_string(&pre_sig)?;
     let pre_sig_bytes: [u8; 64]  = Ed25519::sign(&String::into_bytes(pre_sig_bytes), org_did_keypair.private())?;
@@ -109,7 +109,7 @@ pub fn generate_org_cert(
 
     let org_cert = organization_cert::OrgCert {
         client_pubkey,
-        duration: timeout,
+        timeout: timeout,
         org_pubkey: did_pk_as_multibase,
         signature: pre_sig_bytes.to_vec()
     };

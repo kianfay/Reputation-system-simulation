@@ -1,26 +1,31 @@
 use crate::witness_rep::{
     interaction::{
         generate_sigs, 
-        participant::{
-            ParticipantIdentity, OrganizationIdentity, IdInfo, get_public_keys
+        user_and_organization::{
+            UserIdentity, OrganizationIdentity, IdInfo, get_public_keys
         },
         interaction::{extract_from_ids, get_honest_nodes, lazy_outcome, LazyMethod}
     },
 };
 
-use trust_score_generator::trust_score_generators::{
+use trust_score_generator::{
     data_types::{
-        messages::{
-            tx_messages as message,
-            contract::{Contract, PublicKey},
+        event_protocol_messages::{
+            application_constructs::{
+                application_messages::exchange_app_messages::CompensationMsg,
+                application_contracts::utility_types::{
+                    PublicKey, WitnessUsers
+                },
+            },
+            event_protocol_messages::{
+                Message, Contract, ArrayOfWnSignitures,
+                ArrayOfTxSignitures, ApplicationMsg
+            },
             signatures::{
                 witness_sig, interaction_sig, organization_cert, 
-            },
-            tx_messages::{
-                WitnessClients, ArrayOfWnSignitures, ArrayOfTxSignitures
             }
         },
-        message as tsg_message
+        tsg_data_types::{message as tsg_message}
     }
 };
 
@@ -39,10 +44,10 @@ use identity::{
 use rand::Rng;
 use core::str::FromStr;
 
-pub async fn quick_transact(
+pub async fn quick_interaction(
     contract: Contract,
-    transacting_ids: &mut Vec<ParticipantIdentity>,
-    witness_ids: &mut Vec<ParticipantIdentity>,
+    participant_ids: &mut Vec<UserIdentity>,
+    witness_ids: &mut Vec<UserIdentity>,
     organization_id: &mut OrganizationIdentity,
     lazy_method: LazyMethod,
     run: usize,
@@ -55,7 +60,7 @@ pub async fn quick_transact(
     //--------------------------------------------------------------
     // EXTRACT CLIENTS AND KEYPAIRS FROM IDENTITIES
     //--------------------------------------------------------------
-    let (mut transacting_clients, transacting_did_kp, transacting_reliablity, transacting_org_certs) = extract_from_ids(transacting_ids)?;
+    let (mut transacting_clients, transacting_did_kp, transacting_reliablity, transacting_org_certs) = extract_from_ids(participant_ids)?;
     let (mut witness_clients, witness_did_kp, witness_reliability, witness_org_certs) = extract_from_ids(witness_ids)?;
 
     //--------------------------------------------------------------
@@ -150,7 +155,7 @@ pub async fn quick_transact(
             contract.clone(),
             channel_pk_as_multibase,
             transacting_did_kp[i].clone(),
-            WitnessClients(witnesses.clone()),
+            WitnessUsers(witnesses.clone()),
             interaction_sig::ArrayOfWnSignituresBytes(witness_sigs_bytes.clone()),
             transacting_org_certs[i].clone(),
             DEFAULT_TIMEOUT
@@ -169,9 +174,9 @@ pub async fn quick_transact(
     if print {
         println!("Initiating transacting node generates InteractionMessage:");
     }
-    let interaction_msg = message::Message::InteractionMsg {
+    let interaction_msg = Message::InteractionMsg {
         contract: contract.clone(),
-        witnesses: WitnessClients(witnesses.clone()),
+        witnesses: WitnessUsers(witnesses.clone()),
         wit_node_sigs: ArrayOfWnSignitures(witness_sigs.clone()),
         tx_client_sigs: ArrayOfTxSignitures(transacting_sigs.clone()),
     };
@@ -203,11 +208,11 @@ pub async fn quick_transact(
     if print {
         println!("Assigning tranascting nodes as (dis)honest according to their reliability:");
     }
-    let honest_tranascting_ids = get_honest_nodes(transacting_reliablity, 1);
+    let honest_tranascting_ids = get_honest_nodes(transacting_reliablity);
     if print {
         println!("Assigning witnesses as (dis)honest according to their reliability:");
     }
-    let honest_witness_ids = get_honest_nodes(witness_reliability, 0);
+    let honest_witness_ids = get_honest_nodes(witness_reliability);
 
     // A vector of vectors, the inner a list of the outcomes per participant from
     // the witnesses point of view.
@@ -254,7 +259,7 @@ pub async fn quick_transact(
     }
     for i in 0..witness_clients.len(){
         // WN's prepares their statement
-        let wn_statement = message::Message::WitnessStatement {
+        let wn_statement = Message::WitnessStatement {
             outcome: outcomes[i].clone()
         };
 
@@ -288,13 +293,13 @@ pub async fn quick_transact(
             "wn_a: 0.01".to_string(),
             "wn_b: 0.01".to_string()
         ];
-        let compensation_msg = message::Message::CompensationMsg {
+        let compensation_msg = CompensationMsg {
             payments: payments_tn_a
         };
 
         let msg = tsg_message::MessageAndPubkey {
-            message: compensation_msg,
-            sender_did: transacting_ids[i].id_info.org_cert.client_pubkey.clone()
+            message: Message::ApplicationMsg(ApplicationMsg::CompensationMsg(compensation_msg)),
+            sender_did: participant_ids[i].id_info.org_cert.client_pubkey.clone()
         };
         messages.push(msg);
     }

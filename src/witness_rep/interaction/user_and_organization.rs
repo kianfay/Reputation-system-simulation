@@ -4,7 +4,7 @@ use crate::witness_rep::{
 
 use trust_score_generator::trust_score_generators::{
     data_types::{
-        messages::signatures::organization_cert,
+        event_protocol_messages::signatures::organization_cert,
         verdict::TxVerdict
     }
 };
@@ -29,12 +29,10 @@ use std::collections::HashMap;
 pub struct Identity<C> {
     /// The IOTA channels client
     pub channel_client: C,
-    /// The client seed (a workaround field)
-    pub seed: String,
     /// Information inherent to the participant outside of the simulation
     pub id_info: IdInfo,
     /// A Map from public keys to the perceived reliability of the associated participant
-    pub reliability_map: ReliabilityMap,
+    pub reliability_map: ReputationMap,
     /// The minimum trust this participant needs to have to engage with another participant.
     /// For an organization, this is the minimum average reliability of the participants
     /// needed to allow the transaction.
@@ -111,13 +109,10 @@ impl<C> Identity<C> {
 
 }
 
-
-
-pub type ParticipantIdentity = Identity<Subscriber<Client>>;
+pub type UserIdentity = Identity<Subscriber<Client>>;
 pub struct OrganizationIdentity{
     pub identity:  Identity<Author<Client>>,
     pub ann_msg: Option<String>,
-    pub seed: String
 }
 
 // This is all of the external information about a participant, including their
@@ -125,11 +120,11 @@ pub struct OrganizationIdentity{
 pub struct IdInfo {
     pub did_key: Key,
     pub reliability: f32,
-    pub org_cert: organization_cert::OrgCert
+    pub org_cert: organization_cert::OrganizationCertificate
 }
 
 /// Maps public keys to a reliability score
-pub type ReliabilityMap = HashMap<String, ReliabilityComponents>;
+pub type ReputationMap = HashMap<String, ReliabilityComponents>;
 
 // Reliability is calculated from reliability estimates. One reliability
 // estimate of 0.5 causes the ReliabilityScore = (0.5,1), and the score
@@ -137,7 +132,7 @@ pub type ReliabilityMap = HashMap<String, ReliabilityComponents>;
 // and the score is 1.5/2=0.75
 pub type ReliabilityComponents = (f32, usize);
 
-pub fn get_public_keys(participants: &Vec<organization_cert::OrgCert>) -> Vec<String> {
+pub fn get_public_keys(participants: &Vec<organization_cert::OrganizationCertificate>) -> Vec<String> {
     return participants
         .iter()
         .map(|oc| oc.client_pubkey.clone())
@@ -162,7 +157,7 @@ pub fn get_index_org_with_pubkey(organizations: &Vec<OrganizationIdentity>, pk: 
 }
 
 
-/* #[test]
+#[test]
 pub fn test_reliability_map() {
     // create a default Identity
     let mut id: Identity<u8> = Identity {
@@ -173,7 +168,7 @@ pub fn test_reliability_map() {
             reliability: 1.0,
             org_cert: organization_cert::OrgCert {
                 client_pubkey: String::from(""),
-                duration: 0,
+                timeout: 0,
                 org_pubkey: String::from(""),
                 signature: Vec::new()
             }
@@ -190,4 +185,4 @@ pub fn test_reliability_map() {
     id.update_reliability(vec![(String::from("a"), 1.0)]);
     let a_score = id.calculate_score(id.reliability_map.get("a").unwrap());
     assert_eq!(a_score, 0.75);
-} */
+}

@@ -1,4 +1,4 @@
-use crate::witness_rep::utility::verify_tx::WhichBranch;
+use crate::witness_rep::utility::verify_interaction::WhichBranch;
 
 use iota_streams::app_channels::api::tangle::{
     MessageContent, UnwrappedMessage

@@ -3,10 +3,10 @@ use crate::witness_rep::{
     interaction::{generate_contract, generate_sigs},
     interaction::{
         interaction::{LazyMethod},
-        quick_transaction::quick_transact,
-        participant::{
-            ParticipantIdentity, OrganizationIdentity,
-            IdInfo, ReliabilityMap, Identity, get_index_org_with_pubkey}
+        quick_interaction::quick_interaction,
+        user_and_organization::{
+            UserIdentity, OrganizationIdentity,
+            IdInfo, ReputationMap, Identity, get_index_org_with_pubkey}
     },
     simulation::{SimulationConfig, generate_trans_and_witnesses}
 };
@@ -98,7 +98,7 @@ pub async fn quick_simulation(
         let on: Author<Tangle> = Author::new(seed, ChannelType::MultiBranch, client.clone());
         let repeat_kp = KeyPair::try_from_ed25519_bytes(&sec)?;
         let pubkey =  generate_sigs::get_multibase(&repeat_kp);
-        let reliability_map: ReliabilityMap = HashMap::new();
+        let reliability_map: ReputationMap = HashMap::new();
 
         let org_id: Identity<Author<Client>> = Identity{
             channel_client: on,
@@ -142,21 +142,25 @@ pub async fn quick_simulation(
 
     // create channel subscriber instances
     let mut output: String = String::new();
-    let mut participants: &mut Vec<ParticipantIdentity> = &mut Vec::new();
+    let mut participants: &mut Vec<UserIdentity> = &mut Vec::new();
     for i in 0..sc.num_participants{
         let name = format!("Participant {}", i);
         let tn = Subscriber::new(&name, client.clone());
         let org_kp = &org_kp_map[&sc.organizations[i]];
         let part_did_pk = generate_sigs::get_multibase(&part_did_kps[i]);
-        let reliability_map: ReliabilityMap = HashMap::new();
+        let reliability_map: ReputationMap = HashMap::new();
 
-        let id = ParticipantIdentity {
+        // by adding the duration to the current time, we get the point of timeout
+        let cur_time = time.timestamp() as u32;
+        let timeout = cur_time + DEFAULT_DURATION;
+
+        let id = UserIdentity {
             channel_client: tn,
             seed: name,
             id_info: IdInfo {
                 did_key: part_did_secret[i],
                 reliability: sc.reliability[i],
-                org_cert: generate_sigs::generate_org_cert(part_did_pk.clone(), org_kp, DEFAULT_DURATION)?
+                org_cert: generate_sigs::generate_org_cert(part_did_pk.clone(), org_kp, timeout)?
             },
             reliability_map: reliability_map,
             reliability_threshold: sc.reliability_threshold[i],
@@ -233,7 +237,7 @@ pub async fn quick_simulation(
         if print {
             println!("Generating contract:");        
         }
-        let contract = generate_contract::generate_contract(&mut transacting_clients)?;
+        let contract = generate_contract::generate_exchange_contract(&mut transacting_clients)?;
         if print {
             println!("-- Contract generated\n");
         }
@@ -242,7 +246,7 @@ pub async fn quick_simulation(
         // PERFORM THE INTERACTION WITH CONTRACT
         //--------------------------------------------------------------
 
-        let op_ret = quick_transact(
+        let op_ret = quick_interaction(
             contract,
             &mut transacting_clients,
             &mut witness_clients,

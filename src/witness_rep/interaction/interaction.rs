@@ -1,23 +1,25 @@
 use crate::witness_rep::{
     interaction::{
         generate_sigs, 
-        participant::{
-            ParticipantIdentity, OrganizationIdentity, IdInfo, get_public_keys
+        user_and_organization::{
+            UserIdentity, OrganizationIdentity, IdInfo, get_public_keys
         }
     },
 };
 
 use trust_score_generator::trust_score_generators::{
     data_types::{
-        messages::{
-            tx_messages as message,
-            contract::{Contract, PublicKey},
+        event_protocol_messages::{
+            application_messages::exchange_app_messages::CompensationMsg,
+            event_protocol_messages::{
+                Contract, Message,
+                ArrayOfWnSignitures, ArrayOfTxSignitures,
+                ApplicationMsg
+            },
             signatures::{
                 witness_sig, interaction_sig, organization_cert, 
             },
-            tx_messages::{
-                WitnessClients, ArrayOfWnSignitures, ArrayOfTxSignitures
-            }
+            contracts::utility_types::{PublicKey, WitnessUsers},
         },
         message as tsg_message
     }
@@ -47,7 +49,7 @@ pub enum LazyMethod {
 //pub type OrganizationIdentity = Identity<Author<Client>>;
 
 pub fn extract_from_id(
-    id: &mut ParticipantIdentity
+    id: &mut UserIdentity
 ) -> Result<(&mut Subscriber<Client>, KeyPair, f32, organization_cert::OrgCert)> {
     match &id.id_info {
         IdInfo { 
@@ -62,7 +64,7 @@ pub fn extract_from_id(
 }
 
 pub fn extract_from_ids(
-    ids: &mut Vec<ParticipantIdentity>
+    ids: &mut Vec<UserIdentity>
 ) -> Result<(Vec<&mut Subscriber<Client>>, Vec<KeyPair>, Vec<f32>, Vec<organization_cert::OrgCert>)> {
     let mut subs: Vec<&mut Subscriber<Client>>  = Vec::new();
     let mut kps : Vec<KeyPair>                  = Vec::new();
@@ -86,19 +88,17 @@ pub async fn sync_all(subs: &mut Vec<&mut Subscriber<Client>>) -> Result<()> {
     return Ok(());
 }
 
-/// The offset parameter is to allow for a node not to be targeted to be made dishonest. 
-/// Situations such as the inititation node never acting dishonest require this.
-pub fn get_honest_nodes(participants_reliablity: Vec<f32>, offset: usize) -> Vec<bool>{
-    let mut honest_nodes: Vec<bool> = vec![true; participants_reliablity.len()];
+/// Assigns users as being dishonest or honest, depending on their reliability
+pub fn get_honest_nodes(users_reliablity: Vec<f32>) -> Vec<bool>{
+    let mut honest_nodes: Vec<bool> = vec![true; users_reliablity.len()];
 
-    // for all but the initiating node, who for now we assume to be always acting as honest
-    // because they are paying for everything to go smoothly
-    for i in offset..participants_reliablity.len() {
+    // determine honesty/dishonesty for each user
+    for i in 0..users_reliablity.len() {
 
         // randomly assert if they are acting honest based on their reliability
         let rand: f32 = rand::thread_rng().gen();
         println!("-- Trying participant {}. Rand={}", i, rand);
-        let acting_honest: bool = participants_reliablity[i] > rand;
+        let acting_honest: bool = users_reliablity[i] > rand;
         if !acting_honest {
             honest_nodes[i] = false;
             println!("---- Participant {} set to dishonest", i);
@@ -127,10 +127,10 @@ pub fn lazy_outcome(lazy_method: &LazyMethod) -> bool {
 }
 
 
-pub async fn transact(
+pub async fn interaction(
     contract: Contract,
-    transacting_ids: &mut Vec<ParticipantIdentity>,
-    witness_ids: &mut Vec<ParticipantIdentity>,
+    participant_ids: &mut Vec<UserIdentity>,
+    witness_ids: &mut Vec<UserIdentity>,
     organization_id: &mut OrganizationIdentity,
     lazy_method: LazyMethod,
     run: usize
@@ -143,7 +143,7 @@ pub async fn transact(
     //--------------------------------------------------------------
     // EXTRACT CLIENTS AND KEYPAIRS FROM IDENTITIES
     //--------------------------------------------------------------
-    let (mut transacting_clients, transacting_did_kp, transacting_reliablity, transacting_org_certs) = extract_from_ids(transacting_ids)?;
+    let (mut transacting_clients, transacting_did_kp, transacting_reliablity, transacting_org_certs) = extract_from_ids(participant_ids)?;
     let (mut witness_clients, witness_did_kp, witness_reliability, witness_org_certs) = extract_from_ids(witness_ids)?;
 
     //--------------------------------------------------------------
@@ -263,7 +263,7 @@ pub async fn transact(
             contract.clone(),
             channel_pk_as_multibase,
             transacting_did_kp[i].clone(),
-            WitnessClients(witnesses.clone()),
+            WitnessUsers(witnesses.clone()),
             interaction_sig::ArrayOfWnSignituresBytes(witness_sigs_bytes.clone()),
             transacting_org_certs[i].clone(),
             DEFAULT_TIMEOUT
@@ -278,9 +278,9 @@ pub async fn transact(
     //--------------------------------------------------------------
 
     println!("Initiating transacting node generates InteractionMessage:");
-    let interaction_msg = message::Message::InteractionMsg {
+    let interaction_msg = Message::InteractionMsg {
         contract: contract.clone(),
-        witnesses: WitnessClients(witnesses.clone()),
+        witnesses: WitnessUsers(witnesses.clone()),
         wit_node_sigs: ArrayOfWnSignitures(witness_sigs.clone()),
         tx_client_sigs: ArrayOfTxSignitures(transacting_sigs.clone()),
     };
@@ -324,9 +324,9 @@ pub async fn transact(
     // but only if the witnesses side with the dishonest node, thus jepordising the 
     // the conterparties trust score.
     println!("Assigning tranascting nodes as (dis)honest according to their reliability:");
-    let honest_tranascting_ids = get_honest_nodes(transacting_reliablity, 1);
+    let honest_tranascting_ids = get_honest_nodes(transacting_reliablity);
     println!("Assigning witnesses as (dis)honest according to their reliability:");
-    let honest_witness_ids = get_honest_nodes(witness_reliability, 0);
+    let honest_witness_ids = get_honest_nodes(witness_reliability);
 
     // A vector of vectors, the inner a list of the outcomes per participant from
     // the witnesses point of view.
@@ -361,7 +361,7 @@ pub async fn transact(
     println!("Witnesses generate and send their witness statements:");
     for i in 0..witness_clients.len(){
         // WN's prepares their statement
-        let wn_statement = message::Message::WitnessStatement {
+        let wn_statement = Message::WitnessStatement {
             outcome: outcomes[i].clone()
         };
         let mut wn_statement_string = serde_json::to_string(&wn_statement)?;
@@ -402,10 +402,14 @@ pub async fn transact(
             "wn_a: 0.01".to_string(),
             "wn_b: 0.01".to_string()
         ];
-        let compensation_msg = message::Message::CompensationMsg {
+        let compensation_msg = CompensationMsg {
             payments: payments_tn_a
         };
-        let mut compensation_msg_str = serde_json::to_string(&compensation_msg)?;
+
+        // because CompensationMsg is application specific, it must be wrapped
+        let wrapped_compensation_msg = Message::ApplicationMsg(ApplicationMsg::CompensationMsg(compensation_msg));
+
+        let mut compensation_msg_str = serde_json::to_string(&wrapped_compensation_msg)?;
 
         compensation_msg_str = workaround_channel_bug(run, compensation_msg_str);
         let compensation_tx = vec![

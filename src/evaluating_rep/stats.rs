@@ -9,9 +9,9 @@ use std::collections::HashMap;
 pub type TrueReliability    = f32;
 pub type EstimReliabilities = Vec<f32>;
 pub type Reliability        = (TrueReliability, EstimReliabilities);
-pub type ReliabilityMap     = HashMap<String, Reliability>;
+pub type ReputationMap     = HashMap<String, Reliability>;
 
-pub fn run_avg_mean_squared_error(rel_map: ReliabilityMap) -> Result<f32> {
+pub fn run_avg_mean_squared_error(rel_map: ReputationMap) -> Result<f32> {
     // average out the the estimates
     let mut true_rels: Vec<f32> = Vec::new();
     let mut estm_rels: Vec<f32> = Vec::new();
@@ -33,7 +33,7 @@ pub fn run_avg_mean_squared_error(rel_map: ReliabilityMap) -> Result<f32> {
     return Ok(mse)
 }
 
-pub fn read_reliabilities(dir_name: String, use_arg: bool) -> Result<ReliabilityMap> {
+pub fn read_reliabilities(dir_name: String, use_arg: bool) -> Result<ReputationMap> {
     // read the data from file
     let file_name_start: String;
     let file_name_end: String;
@@ -48,8 +48,8 @@ pub fn read_reliabilities(dir_name: String, use_arg: bool) -> Result<Reliability
     let start_rels = fs::read_to_string(file_name_start)?;
     let end_rels = fs::read_to_string(file_name_end)?;
 
-    // insert the true reliabilities into the ReliabilityMap
-    let mut rel_map = ReliabilityMap::new();
+    // insert the true reliabilities into the ReputationMap
+    let mut rel_map = ReputationMap::new();
     for line in start_rels.split('\n') {
         // extract the pubkey and the true reliability
         let line_option = get_line_info(line);
@@ -65,7 +65,7 @@ pub fn read_reliabilities(dir_name: String, use_arg: bool) -> Result<Reliability
         rel_map.entry(pubkey).or_insert((true_rel, est_rels));
     }
 
-    // inserting the estimated reliabilities into the ReliabilityMaps
+    // inserting the estimated reliabilities into the ReputationMaps
     for paragraph in end_rels.split("\n\n\n") {
         let mut lines = paragraph.split('\n');
 
