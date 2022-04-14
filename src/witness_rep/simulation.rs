@@ -10,9 +10,11 @@ use crate::witness_rep::{
     utility::{verify_interaction, read_msgs, extract_msgs},
 };
 
-use trust_score_generator::trust_score_generators::{
-   trivial_tsg::tsg_organization,
-   utility::parse_messages
+use trust_score_generator::{
+    trust_score_generators::exchange_application_tsg::{
+        trivial_tsg::tsg_organization,
+    },
+    utility::parse_messages
 };
 
 use iota_streams::{
@@ -127,7 +129,6 @@ pub async fn simulation(
 
         let org_id: Identity<Author<Client>> = Identity{
             channel_client: on,
-            seed: String::from(" "),
             id_info: IdInfo {
                 did_key: sec,
                 reliability: sc.reliability[i],
@@ -140,8 +141,7 @@ pub async fn simulation(
 
         let org_id_with_announcement = OrganizationIdentity{
             identity: org_id,
-            ann_msg: None,
-            seed: String::from(seed)
+            ann_msg: None
         };
         organizations.push(org_id_with_announcement);
     }
@@ -177,7 +177,6 @@ pub async fn simulation(
 
         let id = UserIdentity {
             channel_client: tn,
-            seed: name,
             id_info: IdInfo {
                 did_key: part_did_secret[i],
                 reliability: sc.reliability[i],
@@ -324,7 +323,7 @@ pub async fn simulation_iteration(
     // PERFORM THE INTERACTION WITH CONTRACT
     //--------------------------------------------------------------
 
-    let (tn_honesty, wn_honesty) = interaction(
+    let interaction_result = interaction(
         contract,
         &mut transacting_clients,
         &mut witness_clients,
@@ -332,6 +331,13 @@ pub async fn simulation_iteration(
         lazy_method,
         run,
     ).await?;
+    
+    let (tn_honesty, wn_honesty) = match interaction_result{
+        Some((tn_h, wn_h)) => (tn_h, wn_h),
+        None => println!(
+            "The average reliability of the participants does not satisfy the organizations threshold"
+        )
+    };
 
     // put the particpants back into the original array
     participants.append(&mut witness_clients);
@@ -343,10 +349,12 @@ pub async fn simulation_iteration(
 
     // verify the interaction
     let ann_msg = &organizations[org_index].ann_msg.as_ref().unwrap();
-    let org_seed = &organizations[org_index].seed;
     let branches = verify_interaction::WhichBranch::LastBranch;
     let channel_msgs = read_msgs::read_msgs(node_url, ann_msg, org_seed).await?;
-    let (verified, msgs, pks) = verify_interaction::verify_interaction(channel_msgs, branches).await?;
+    let application = String::from("ExchangeApplication");
+    let (verified, msgs, pks) = verify_interaction::verify_interaction(
+        channel_msgs, branches, application
+    ).await?;
 
     if !verified {
         panic!("One of the messages could not be verified");

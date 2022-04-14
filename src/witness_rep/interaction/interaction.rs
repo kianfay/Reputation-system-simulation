@@ -89,7 +89,7 @@ pub async fn sync_all(subs: &mut Vec<&mut Subscriber<Client>>) -> Result<()> {
 }
 
 /// Assigns users as being dishonest or honest, depending on their reliability
-pub fn get_honest_nodes(users_reliablity: Vec<f32>) -> Vec<bool>{
+pub fn get_honest_users(users_reliablity: Vec<f32>) -> Vec<bool>{
     let mut honest_nodes: Vec<bool> = vec![true; users_reliablity.len()];
 
     // determine honesty/dishonesty for each user
@@ -134,7 +134,7 @@ pub async fn interaction(
     organization_id: &mut OrganizationIdentity,
     lazy_method: LazyMethod,
     run: usize
-) -> Result<(Vec<bool>, Vec<bool>)> {
+) -> Result<Option<(Vec<bool>, Vec<bool>)>> {
     const DEFAULT_TIMEOUT : u32 = 60*2; // 2 mins
     let ann_str = organization_id.ann_msg.as_ref().unwrap();
     let announcement_link = Address::from_str(ann_str)?;
@@ -157,7 +157,7 @@ pub async fn interaction(
     participant_pks.append(&mut tn_pks); participant_pks.append(&mut wn_pks);
 
     if !organization_id.identity.check_avg_participants(&participant_pks){
-        panic!("The average reliability of the participants does not satisfy the organizations threshold")
+        return Ok(None);
     }
 
 
@@ -324,9 +324,9 @@ pub async fn interaction(
     // but only if the witnesses side with the dishonest node, thus jepordising the 
     // the conterparties trust score.
     println!("Assigning tranascting nodes as (dis)honest according to their reliability:");
-    let honest_tranascting_ids = get_honest_nodes(transacting_reliablity);
+    let honest_tranascting_ids = get_honest_users(transacting_reliablity);
     println!("Assigning witnesses as (dis)honest according to their reliability:");
-    let honest_witness_ids = get_honest_nodes(witness_reliability);
+    let honest_witness_ids = get_honest_users(witness_reliability);
 
     // A vector of vectors, the inner a list of the outcomes per participant from
     // the witnesses point of view.
@@ -445,7 +445,7 @@ pub async fn interaction(
     }
     println!("-- All participants unregistered");
     
-    return Ok((honest_tranascting_ids, honest_witness_ids));
+    return Ok(Some((honest_tranascting_ids, honest_witness_ids)));
 }
 
 pub fn workaround_channel_bug(run: usize, tx: String) -> String {

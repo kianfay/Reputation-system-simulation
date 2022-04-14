@@ -11,7 +11,9 @@ use crate::witness_rep::{
     simulation::{SimulationConfig, generate_trans_and_witnesses}
 };
 
-use trust_score_generator::trust_score_generators::trivial_tsg::tsg_organization;
+use trust_score_generator::trust_score_generators::{
+    exchange_application_tsg::trivial_tsg::tsg_organization
+};
 
 use iota_streams::{
     app::transport::tangle::client::Client,

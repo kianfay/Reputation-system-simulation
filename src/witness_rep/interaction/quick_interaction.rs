@@ -4,7 +4,7 @@ use crate::witness_rep::{
         user_and_organization::{
             UserIdentity, OrganizationIdentity, IdInfo, get_public_keys
         },
-        interaction::{extract_from_ids, get_honest_nodes, lazy_outcome, LazyMethod}
+        interaction::{extract_from_ids, get_honest_users, lazy_outcome, LazyMethod}
     },
 };
 
@@ -208,11 +208,11 @@ pub async fn quick_interaction(
     if print {
         println!("Assigning tranascting nodes as (dis)honest according to their reliability:");
     }
-    let honest_tranascting_ids = get_honest_nodes(transacting_reliablity);
+    let honest_tranascting_ids = get_honest_users(transacting_reliablity);
     if print {
         println!("Assigning witnesses as (dis)honest according to their reliability:");
     }
-    let honest_witness_ids = get_honest_nodes(witness_reliability);
+    let honest_witness_ids = get_honest_users(witness_reliability);
 
     // A vector of vectors, the inner a list of the outcomes per participant from
     // the witnesses point of view.
