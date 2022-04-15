@@ -5,17 +5,19 @@ use crate::{
 
 use anyhow::Result;
 
-pub async fn evaluate_reliability_threshold_var(url: &str) -> Result<()> {
+pub async fn evaluate_user_default_reliability_var(url: &str) -> Result<()> {
     let sc = witness_rep::simulation::SimulationConfig {
         node_url: String::from(url),
-        num_participants: 15,
+        num_users: 15,
         average_proximity: 0.6,
         witness_floor: 2,
         runs: 10,
         reliability: vec![0.8; 15],
-        reliability_threshold: vec![0.1; 15],
-        default_reliability: vec![0.5; 15],
-        organizations: vec![0,0,0,0,0,1,1,1,1,1,2,2,2,2,2]
+        user_reliability_threshold: vec![0.1; 15],
+        user_default_reliability: vec![0.5; 15],
+        user_organizations: vec![0,0,0,0,0,1,1,1,1,1,2,2,2,2,2],
+        organization_reliability_threshold: vec![0.1; 15],
+        organization_default_reliability: vec![0.5; 15]
     };
 
     let mut ind_var_0: IndependantVar<IndependantVarPart> = IndependantVar {

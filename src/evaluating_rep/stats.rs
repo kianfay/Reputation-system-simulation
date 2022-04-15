@@ -39,10 +39,10 @@ pub fn read_reliabilities(dir_name: String, use_arg: bool) -> Result<ReputationM
     let file_name_end: String;
     if use_arg {
         file_name_start = format!("./runs/{}/start_reliability.txt", dir_name);
-        file_name_end = format!("./runs/{}/reliability_maps.txt", dir_name);
+        file_name_end = format!("./runs/{}/reputation_maps.txt", dir_name);
     } else {
         file_name_start = format!("{}/start_reliability.txt", dir_name);
-        file_name_end = format!("{}/reliability_maps.txt", dir_name);
+        file_name_end = format!("{}/reputation_maps.txt", dir_name);
     }
     println!("{}", file_name_start);
     let start_rels = fs::read_to_string(file_name_start)?;

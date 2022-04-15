@@ -10,7 +10,7 @@ mod evaluating_rep;
 async fn main() -> Result<()> {
     let url = "http://0.0.0.0:14265";
 
-    //evaluate_reliability_threshold_var(url).await?;
+    //evaluate_user_reliability_threshold_var(url).await?;
     examples::run_simple_sim::run_simple_sim(url).await?;
 
 

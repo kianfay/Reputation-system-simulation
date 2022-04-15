@@ -5,17 +5,19 @@ use crate::{
 
 use anyhow::Result;
 
-pub async fn evaluate_num_participants_var(url: &str) -> Result<()> {
+pub async fn evaluate_num_users_var(url: &str) -> Result<()> {
     let sc = witness_rep::simulation::SimulationConfig {
         node_url: String::from(url),
-        num_participants: 4,
+        num_users: 4,
         average_proximity: 0.5,
         witness_floor: 2,
         runs: 10,
         reliability: vec![0.8; 4],
-        reliability_threshold: vec![0.1; 4],
-        default_reliability: vec![0.5; 4],
-        organizations: vec![0,1,2,3]
+        user_reliability_threshold: vec![0.1; 4],
+        user_default_reliability: vec![0.5; 4],
+        user_organizations: vec![0,1,2,3],
+        organization_reliability_threshold: vec![0.1; 4],
+        organization_default_reliability: vec![0.5; 4]
     };
 
     let mut ind_var_0: IndependantVar<IndependantVarApp> = IndependantVar {

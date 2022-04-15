@@ -1,11 +1,16 @@
-use trust_score_generator::trust_score_generators::{
-    data_types::{
+use wb_reputation_system::data_types::{
+    event_protocol_messages::{
         event_protocol_messages::{
-            event_protocol_messages::Contract,
-            signatures::{
-                witness_sig, interaction_sig, organization_cert,
+            Contract
+        },
+        signatures::{
+            witness_sig, interaction_sig,
+            organization_cert::{
+                OrganizationCertificatePreSig, OrganizationCertificate
             },
-            contracts::utility_types::WitnessUsers
+        },
+        application_constructs::application_contracts::{
+            utility_types::WitnessUsers
         }
     },
 };
@@ -23,7 +28,7 @@ pub fn generate_witness_sig(
     contract: Contract,
     channel_pk_as_multibase: String,
     did_keypair: KeyPair,
-    org_cert: organization_cert::OrgCert,
+    org_cert: OrganizationCertificate,
     timeout: u32
 ) -> Result<witness_sig::WitnessSig> {
 
@@ -53,13 +58,13 @@ pub fn generate_witness_sig(
     return Ok(wn_sig);
 }
 
-pub fn generate_transacting_sig(
+pub fn generate_participant_sig(
     contract: Contract,
     channel_pk_as_multibase: String,
     did_keypair: KeyPair,
     witnesses: WitnessUsers,
     witness_sigs: interaction_sig::ArrayOfWnSignituresBytes,
-    org_cert: organization_cert::OrgCert,
+    org_cert: OrganizationCertificate,
     timeout: u32
 ) -> Result<interaction_sig::InteractionSig> {
 
@@ -97,8 +102,8 @@ pub fn generate_org_cert(
     client_pubkey: String,
     org_did_keypair: &KeyPair,
     timeout: u32
-) -> Result<organization_cert::OrgCert>{
-    let pre_sig = organization_cert::OrgCertPreSig {
+) -> Result<OrganizationCertificate>{
+    let pre_sig = OrganizationCertificatePreSig {
         client_pubkey: client_pubkey.clone(),
         timeout: timeout
     };
@@ -107,7 +112,7 @@ pub fn generate_org_cert(
 
     let did_pk_as_multibase: String = get_multibase(org_did_keypair);
 
-    let org_cert = organization_cert::OrgCert {
+    let org_cert = OrganizationCertificate {
         client_pubkey,
         timeout: timeout,
         org_pubkey: did_pk_as_multibase,

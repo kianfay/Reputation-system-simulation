@@ -11,13 +11,12 @@ use core::str::FromStr;
 
 pub async fn read_msgs(
     node_url: &str, 
-    ann_msg: &str, 
-    seed: &str
+    ann_msg: &str
 ) -> Result<Vec<UnwrappedMessage>> {
     // build another client to read the tangle with (the seed must be the same as 
     // one of the subscribers in the channel, which is why the author's seed is needed)
     let client = Client::new_from_url(node_url);
-    let mut reader = Subscriber::new(seed, client.clone());
+    let mut reader = Subscriber::new("reader", client.clone());
 
     // process the address string
     let ann_address = Address::from_str(ann_msg)?;

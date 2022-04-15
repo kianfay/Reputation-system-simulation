@@ -1,16 +1,15 @@
 use crate::witness_rep::{
     interaction::user_and_organization::{
-        UserIdentity, IdInfo
+        UserIdentity
     },
 };
 
-use trust_score_generator::trust_score_generators::data_types::{
+use wb_reputation_system::data_types::{
     event_protocol_messages::{
-        application_messages::exchange_app_messages::CompensationMsg,
         event_protocol_messages::{
-            Contract, ApplicationMsg
+            Contract
         },
-        contracts::{
+        application_constructs::application_contracts::{
             exchange_app_contract::ExchangeContract,
             utility_types::{
                 UserOrWitnesses, ParticipantUsers, CompensationJson
@@ -27,7 +26,11 @@ use identity::{
     crypto::KeyPair
 };
 
-pub fn generate_exchange_contract(participant_ids: &mut Vec<UserIdentity>) -> Result<Contract> {
+// informally requires the participant_ids vector to be of length 2
+pub fn generate_exchange_contract(
+    participant_ids: &mut Vec<UserIdentity>,
+    channel_address: String
+) -> Result<Contract> {
     // get the did pubkeys from the ids
     let did_pubkeys_res : Result<Vec<String>> = participant_ids
         .iter()
@@ -51,14 +54,18 @@ pub fn generate_exchange_contract(participant_ids: &mut Vec<UserIdentity>) -> Re
 
     // generate the contract
     let contract_hardcoded = ExchangeContract {
-        offer: String::from("tn_b allows tn_a take their place in the queue"),               
+        channel_address: channel_address,
+        offer: String::from("p1 allows p2 take their place in the queue"),               
         participants: ParticipantUsers(
-            did_pubkeys
+            vec![(did_pubkeys[0].clone(), String::from("p1")), (did_pubkeys[1].clone(), String::from("p2"))]
         ),
         compensation: compensation_json,
+        
+        //metadata
         time: 1643572739,
         location: ((53, 20, 27.036),(6, 15, 2.695)),
+        timeout: 1643573739
     };
 
-    return Ok(Contract::ExchangeContract(contract_hardcoded));
+    return Ok(Contract::ExchangeApplication(contract_hardcoded));
 }

@@ -1,7 +1,9 @@
 use identity::{
     iota::{ClientBuilder, DIDMessageEncoding, ExplorerUrl, Network, Client, ClientMap, Receipt, IotaDocument},
     account::{Result},
-    crypto::KeyPair,
+    crypto::{
+        KeyType, KeyPair
+    },
     core::Result as Res
 };
 

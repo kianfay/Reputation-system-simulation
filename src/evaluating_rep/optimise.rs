@@ -82,13 +82,13 @@ impl SCIterator for IndependantVar<IndependantVarPart> {
  * In the SimulationConfig struct:
  *  SimulationConfig {
         pub node_url: String,
-        pub num_participants: usize,        **
+        pub num_users: usize,        **
         pub average_proximity: f32,         **
         pub witness_floor: usize,           **
         pub runs: usize,                    **
         pub reliability: Vec<f32>,          **  
-        pub reliability_threshold: Vec<f32>,**  
-        pub default_reliability: Vec<f32>,  **
+        pub user_reliability_threshold: Vec<f32>,**  
+        pub user_default_reliability: Vec<f32>,  **
         pub organizations: Vec<usize>,      
     }
  * the fields marked ** are the ones which can be independant variables
@@ -173,17 +173,17 @@ pub fn get_next_config_app(
     match ind_var.clone().independant_var {
         IndependantVarAppHollow::NumParticipants(range)  => 
             {
-                new_val = sc.num_participants + increments;
+                new_val = sc.num_users + increments;
                 if !range.contains(&new_val) {return None;}
-                sc.num_participants = new_val;
+                sc.num_users = new_val;
 
                 // special case, needs other param changes
                 sc.reliability = vec![sc.reliability[0]; new_val];
-                sc.reliability_threshold = vec![sc.reliability_threshold[0]; new_val];
-                sc.default_reliability = vec![sc.default_reliability[0]; new_val];
-                sc.default_reliability = vec![sc.default_reliability[0]; new_val];
+                sc.user_reliability_threshold = vec![sc.user_reliability_threshold[0]; new_val];
+                sc.user_default_reliability = vec![sc.user_default_reliability[0]; new_val];
+                sc.user_default_reliability = vec![sc.user_default_reliability[0]; new_val];
                 // this keeps distribution of organizations uniform
-                sc.organizations = vec![0; new_val].into_iter().map(|x| x % 4).collect();
+                sc.user_organizations = vec![0; new_val].into_iter().map(|x| x % 4).collect();
 
             },
         IndependantVarAppHollow::AverageProximity(range) => 
@@ -214,7 +214,7 @@ pub fn get_next_config_app(
                 let normal = Normal::new(_new_val, (*std as f64) / 100.0);
                 let reliabilities: Vec<f32> = normal
                     .sample_iter(&mut rand::thread_rng())
-                    .take(sc.num_participants)
+                    .take(sc.num_users)
                     .map(|x| x as f32)
                     .collect();
                 
@@ -243,7 +243,7 @@ pub fn get_next_config_part(
     let normal = Normal::new(_new_mean, (ind_var.current_std as f64) / 100.0);
     let new_vec: Vec<f32> = normal
         .sample_iter(&mut rand::thread_rng())
-        .take(sc.num_participants)
+        .take(sc.num_users)
         .map(|x| x as f32)
         .collect();
     //println!("{:?}", reliabilities);
@@ -259,11 +259,11 @@ pub fn get_next_config_part(
         },
         IndependantVarPartHollow::ReliabilityThreshold  =>
         {   
-            sc.reliability_threshold = new_vec;
+            sc.user_reliability_threshold = new_vec;
         },
         IndependantVarPartHollow::DefaultReliability  =>
         {
-            sc.default_reliability = new_vec;
+            sc.user_default_reliability = new_vec;
         },
         _ => return None
     }
@@ -276,14 +276,16 @@ pub fn get_next_config_part(
 pub fn test_sc_iterator() {
     let sc = SimulationConfig {
         node_url: String::from(""),
-        num_participants: 15,
+        num_users: 15,
         average_proximity: 0.5,
         witness_floor: 2,
         runs: 30,
         reliability: vec![1.0; 15],
-        reliability_threshold: vec![1.0; 15],
-        default_reliability: vec![1.0; 15],
-        organizations: vec![1; 15]
+        user_reliability_threshold: vec![1.0; 15],
+        user_default_reliability: vec![1.0; 15],
+        user_organizations: vec![1; 15],
+        organization_reliability_threshold: vec![1.0; 15],
+        organization_default_reliability: vec![1.0; 15]
     };
     let mut ind_var: IndependantVar<IndependantVarPart> = IndependantVar {
         sc: sc,

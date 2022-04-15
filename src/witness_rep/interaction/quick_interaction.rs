@@ -8,7 +8,7 @@ use crate::witness_rep::{
     },
 };
 
-use trust_score_generator::{
+use wb_reputation_system::{
     data_types::{
         event_protocol_messages::{
             application_constructs::{
@@ -19,7 +19,8 @@ use trust_score_generator::{
             },
             event_protocol_messages::{
                 Message, Contract, ArrayOfWnSignitures,
-                ArrayOfTxSignitures, ApplicationMsg
+                ArrayOfTxSignitures, ApplicationMsg,
+                Outcome
             },
             signatures::{
                 witness_sig, interaction_sig, organization_cert, 
@@ -60,7 +61,7 @@ pub async fn quick_interaction(
     //--------------------------------------------------------------
     // EXTRACT CLIENTS AND KEYPAIRS FROM IDENTITIES
     //--------------------------------------------------------------
-    let (mut transacting_clients, transacting_did_kp, transacting_reliablity, transacting_org_certs) = extract_from_ids(participant_ids)?;
+    let (mut participant_clients, participant_did_kp, participant_reliablity, participant_org_certs) = extract_from_ids(participant_ids)?;
     let (mut witness_clients, witness_did_kp, witness_reliability, witness_org_certs) = extract_from_ids(witness_ids)?;
 
     //--------------------------------------------------------------
@@ -68,7 +69,7 @@ pub async fn quick_interaction(
     //--------------------------------------------------------------
     
     // get the public keys of all the participants
-    let mut tn_pks = get_public_keys(&transacting_org_certs);
+    let mut tn_pks = get_public_keys(&participant_org_certs);
     let mut wn_pks = get_public_keys(&witness_org_certs);
     let mut participant_pks = Vec::new();
     participant_pks.append(&mut tn_pks); participant_pks.append(&mut wn_pks);
@@ -139,11 +140,11 @@ pub async fn quick_interaction(
         .collect();
 
     if print {
-        println!("Transacting nodes generate their signatures:");
+        println!("Participants generate their signatures:");
     }
-    let mut transacting_sigs: Vec<interaction_sig::InteractionSig> = Vec::new();
-    for i in 0..transacting_clients.len() {
-        let multibase_pub = MethodData::new_multibase(transacting_clients[i].get_public_key());
+    let mut participant_sigs: Vec<interaction_sig::InteractionSig> = Vec::new();
+    for i in 0..participant_clients.len() {
+        let multibase_pub = MethodData::new_multibase(participant_clients[i].get_public_key());
         let channel_pk_as_multibase: String;
         if let MethodData::PublicKeyMultibase(mbpub) = multibase_pub {
             channel_pk_as_multibase = mbpub;
@@ -151,19 +152,19 @@ pub async fn quick_interaction(
         else {
             panic!("Could not encode public key as multibase")
         }
-        let sig = generate_sigs::generate_transacting_sig(
+        let sig = generate_sigs::generate_participant_sig(
             contract.clone(),
             channel_pk_as_multibase,
-            transacting_did_kp[i].clone(),
+            participant_did_kp[i].clone(),
             WitnessUsers(witnesses.clone()),
             interaction_sig::ArrayOfWnSignituresBytes(witness_sigs_bytes.clone()),
-            transacting_org_certs[i].clone(),
+            participant_org_certs[i].clone(),
             DEFAULT_TIMEOUT
         )?;
-        transacting_sigs.push(sig);
+        participant_sigs.push(sig);
     }
     if print {
-        println!("-- Transacting node signatures generated\n");
+        println!("-- Participant signatures generated\n");
     }
 
     //--------------------------------------------------------------
@@ -172,13 +173,13 @@ pub async fn quick_interaction(
     //--------------------------------------------------------------
 
     if print {
-        println!("Initiating transacting node generates InteractionMessage:");
+        println!("Initiating participant generates InteractionMessage:");
     }
     let interaction_msg = Message::InteractionMsg {
         contract: contract.clone(),
         witnesses: WitnessUsers(witnesses.clone()),
         wit_node_sigs: ArrayOfWnSignitures(witness_sigs.clone()),
-        tx_client_sigs: ArrayOfTxSignitures(transacting_sigs.clone()),
+        tx_client_sigs: ArrayOfTxSignitures(participant_sigs.clone()),
     };
     if print {
         println!("-- InteractionMessage generated");
@@ -190,7 +191,7 @@ pub async fn quick_interaction(
 
     let msg = tsg_message::MessageAndPubkey {
         message: interaction_msg,
-        sender_did: transacting_org_certs[0].client_pubkey.clone()
+        sender_did: participant_org_certs[0].client_pubkey.clone()
     };
     messages.push(msg);
 
@@ -200,7 +201,7 @@ pub async fn quick_interaction(
     //--------------------------------------------------------------
 
 
-    // Dishonest transacting nodes still want to get compensated, but are rellying
+    // Dishonest participants still want to get compensated, but are rellying
     // on lazy (or colluding) witnesses for compensation to be more likely. Reason
     // being, the counterparty may still compensate them even if they act dishonestly,
     // but only if the witnesses side with the dishonest node, thus jepordising the 
@@ -208,7 +209,7 @@ pub async fn quick_interaction(
     if print {
         println!("Assigning tranascting nodes as (dis)honest according to their reliability:");
     }
-    let honest_tranascting_ids = get_honest_users(transacting_reliablity);
+    let honest_tranascting_ids = get_honest_users(participant_reliablity);
     if print {
         println!("Assigning witnesses as (dis)honest according to their reliability:");
     }
@@ -233,13 +234,13 @@ pub async fn quick_interaction(
             // their dishonesty.
             if honesty_of_wn {
                 outcomes[i].push(honesty_of_tn);
-                println!("-- Witnesses {} responds honestly about transacting node {}", i, j);
+                println!("-- Witnesses {} responds honestly about participant {}", i, j);
                 if print {
         
                 }
             } else {
                 outcomes[i].push(lazy_outcome(&lazy_method));
-                println!("-- Witnesses {} responds dishonestly about transacting node {}", i, j);
+                println!("-- Witnesses {} responds dishonestly about participant {}", i, j);
                 if print {
         
                 }
@@ -260,7 +261,7 @@ pub async fn quick_interaction(
     for i in 0..witness_clients.len(){
         // WN's prepares their statement
         let wn_statement = Message::WitnessStatement {
-            outcome: outcomes[i].clone()
+            outcome: Outcome::ExchangeApplication(outcomes[i].clone())
         };
 
         let msg = tsg_message::MessageAndPubkey {
@@ -281,9 +282,9 @@ pub async fn quick_interaction(
     // TODO - add read and choice
 
     if print {
-        println!("Transacting nodes send compensation:");
+        println!("Participants send compensation:");
     }
-    for i in 0..transacting_clients.len(){
+    for i in 0..participant_clients.len(){
 
         // TODO - certain TNs need to compensate other TNs
 
@@ -298,7 +299,7 @@ pub async fn quick_interaction(
         };
 
         let msg = tsg_message::MessageAndPubkey {
-            message: Message::ApplicationMsg(ApplicationMsg::CompensationMsg(compensation_msg)),
+            message: Message::ApplicationMsg(ApplicationMsg::ExchangeApplication(compensation_msg)),
             sender_did: participant_ids[i].id_info.org_cert.client_pubkey.clone()
         };
         messages.push(msg);

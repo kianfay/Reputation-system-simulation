@@ -2,7 +2,7 @@ use crate::witness_rep::{
     utility::{extract_msgs}
 };
 
-use trust_score_generator::{
+use wb_reputation_system::{
     data_types::{
         event_protocol_messages::{
             application_constructs::application_messages::exchange_app_messages::CompensationMsg,
@@ -26,7 +26,7 @@ use identity::{
 
 #[derive(Clone,PartialEq,Debug)]
 pub enum PublickeyOwner {
-    TransactingNode(String),
+    Participant(String),
     Witness(String)
 }
 
@@ -95,16 +95,17 @@ pub fn verify_msg(
         message::Message::InteractionMsg {
             contract, witnesses, wit_node_sigs, tx_client_sigs
         } => {
-            let tx_msg = message::Message::InteractionMsg {contract, witnesses, wit_node_sigs, tx_client_sigs};
+            let tx_msg = message::Message::InteractionMsg {contract: contract.clone(), witnesses, wit_node_sigs, tx_client_sigs};
             let (message::ArrayOfWnSignitures(wit_sigs), message::ArrayOfTxSignitures(tn_sigs)) = get_sigs(tx_msg);
 
             // check that the contract is as defined in the application
-            match contract {
+            match contract.clone() {
                 Contract::ExchangeApplication(_) => {
                     if application != "ExchangeApplication" {
-                        panic!("Interaction signature verification failed")
+                        panic!("Interaction signature verification failed because of wrong application use")
                     }
-                }
+                },
+                _ => panic!("Interaction signature verification failed because could not recognize the application")
             }
 
             // store the witness sigs to check the interaction sigs
@@ -113,7 +114,7 @@ pub fn verify_msg(
             // Check that each witness sig is valid, meaning it was sent by the owner of the DID,
             // not just any person who holds the public key of the DID
             for ws in wit_sigs.iter() {
-                let (verified, pk, sig) = verify_witness_sig(ws.clone(), Some(contract))?;
+                let (verified, pk, sig) = verify_witness_sig(ws.clone(), Some(contract.clone()))?;
                 if !verified {
                     panic!("Interaction signature verification failed")
                 } else {
@@ -130,11 +131,11 @@ pub fn verify_msg(
             // agreeing to have a witness witness the event.
             witness_sigs.sort();
             for ts in tn_sigs.iter() {
-                let (verified, pk) = verify_interaction_sig(ts.clone(), Some(contract), witness_sigs.clone())?;
+                let (verified, pk) = verify_interaction_sig(ts.clone(), Some(contract.clone()), witness_sigs.clone())?;
                 if !verified {
                     panic!("Witness signature verification failed")
                 } else {
-                    valid_pks.push(PublickeyOwner::TransactingNode(pk));
+                    valid_pks.push(PublickeyOwner::Participant(pk));
                 }
             }
             return Ok((true, Some(valid_pks)))
@@ -160,7 +161,7 @@ pub fn verify_msg(
                     }
 
                     // ensures that a participant sent this message
-                    let wrapped_channel_pk = PublickeyOwner::TransactingNode(channel_pk.clone());
+                    let wrapped_channel_pk = PublickeyOwner::Participant(channel_pk.clone());
                     if valid_pks.contains(&wrapped_channel_pk) {
                         return Ok((true, None));
                     }
@@ -201,7 +202,7 @@ pub fn verify_witness_sig(
             signature,
         } => {
             let pre_sig = witness_sig::WitnessPreSig {
-                contract,
+                contract: contract.clone(),
                 signer_channel_pubkey: signer_channel_pubkey.clone(),
                 org_cert: org_cert.clone(),
                 timeout,
@@ -247,19 +248,19 @@ pub fn verify_interaction_sig(
             signature,
         } => {
 
-            // Ensure that the transacting sigs reference the exact same list of witnesses
+            // Ensure that the participant sigs reference the exact same list of witnesses
             // as the tx_msg. We can do this quickly by sorting both lists, and checking for
             // equality (instead of checking each sig one at a time)
             let mut sorted_wn_sigs_to_check = wit_node_sigs.clone().0;
             sorted_wn_sigs_to_check.sort();
 
             if sorted_wn_sigs_to_check != sorted_witness_sigs {
-                panic!("The witnesses linked in the transacting sig differ from those in the transaction message")
+                panic!("The witnesses linked in the participant sig differ from those in the transaction message")
             }
 
 
             let pre_sig = interaction_sig::InteractionPreSig {
-                contract,
+                contract: contract.clone(),
                 signer_channel_pubkey: signer_channel_pubkey.clone(),
                 witnesses,
                 wit_node_sigs,

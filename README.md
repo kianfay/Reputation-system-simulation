@@ -13,23 +13,23 @@ cargo run --release
 ```rust
     witness_rep::simulation::SimulationConfig {
         node_url: String::from(url),
-        num_participants: 4,
+        num_users: 4,
         average_proximity: 1.0,
         witness_floor: 2,
         runs: 1,
         reliability: vec![0.75; 4],
-        reliability_threshold: vec![0.5; 4],
-        default_reliability: vec![0.5; 4],
+        user_reliability_threshold: vec![0.5; 4],
+        user_default_reliability: vec![0.5; 4],
         organizations: vec![0,1,1,0]
     }; 
 ```
 
 ### Output:
 ```
-Selecting participants to be transacting nodes and witnesses:
--- Transacting node 0 is finding witnesses:
+Selecting participants to be participants and witnesses:
+-- Participant 0 is finding witnesses:
 ---- Found witnesses at indices: [0, 1]
--- Transacting node 1 is finding witnesses:
+-- Participant 1 is finding witnesses:
 ---- Found witnesses at indices: [0, 1]
 
 Assigning tranascting nodes as (dis)honest according to their reliability:
@@ -41,15 +41,15 @@ Assigning witnesses as (dis)honest according to their reliability:
 ---- Participant 1 set to honest
 
 Witnesses decide on the outcome:
--- Witnesses 0 responds dishonestly about transacting node 0 (true)
--- Witnesses 0 responds dishonestly about transacting node 1 (false)
--- Witnesses 1 responds honestly about transacting node 0
--- Witnesses 1 responds honestly about transacting node 1
+-- Witnesses 0 responds dishonestly about participant 0 (true)
+-- Witnesses 0 responds dishonestly about participant 1 (false)
+-- Witnesses 1 responds honestly about participant 0
+-- Witnesses 1 responds honestly about participant 1
 
 Verdicts:
--- Transacting node 1 (TN1)
+-- Participant 1 (TN1)
 ---- tns [1.0, 1.0] wns [0.0, 1.0]
--- Transacting node 2 (TN2)
+-- Participant 2 (TN2)
 ---- tns [1.0, 0.0] wns [1.0, 0.0]
 -- Witness node 1 (WN1)
 ---- tns [1.0, 0.0] wns [1.0, 0.0]

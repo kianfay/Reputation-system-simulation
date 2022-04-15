@@ -7,21 +7,29 @@ use crate::witness_rep::{
     },
 };
 
-use trust_score_generator::trust_score_generators::{
-    data_types::{
-        event_protocol_messages::{
-            application_messages::exchange_app_messages::CompensationMsg,
-            event_protocol_messages::{
-                Contract, Message,
-                ArrayOfWnSignitures, ArrayOfTxSignitures,
-                ApplicationMsg
+use wb_reputation_system::data_types::{
+    event_protocol_messages::{
+        application_constructs::{
+            application_messages::{
+                exchange_app_messages::CompensationMsg,
             },
-            signatures::{
-                witness_sig, interaction_sig, organization_cert, 
+            application_contracts::{
+                utility_types::{
+                    PublicKey, WitnessUsers
+                }
             },
-            contracts::utility_types::{PublicKey, WitnessUsers},
         },
-        message as tsg_message
+        event_protocol_messages::{
+            Contract, Message,
+            ArrayOfWnSignitures, ArrayOfTxSignitures,
+            ApplicationMsg, Outcome
+        },
+        signatures::{
+            witness_sig, interaction_sig,
+            organization_cert::{
+                OrganizationCertificate
+            }, 
+        },
     }
 };
 
@@ -50,26 +58,27 @@ pub enum LazyMethod {
 
 pub fn extract_from_id(
     id: &mut UserIdentity
-) -> Result<(&mut Subscriber<Client>, KeyPair, f32, organization_cert::OrgCert)> {
+) -> Result<(&mut Subscriber<Client>, KeyPair, f32, OrganizationCertificate)> {
     match &id.id_info {
         IdInfo { 
             did_key,
             reliability,
-            org_cert
+            org_cert,
+            seed: _
         } => {
             let did_keypair = KeyPair::try_from_ed25519_bytes(did_key)?;
-            return Ok((&mut id.channel_client, did_keypair,reliability.clone(), org_cert.clone()));
+            return Ok((&mut id.channel_client, did_keypair,reliability.clone().unwrap(), org_cert.clone()));
         }
     }
 }
 
 pub fn extract_from_ids(
     ids: &mut Vec<UserIdentity>
-) -> Result<(Vec<&mut Subscriber<Client>>, Vec<KeyPair>, Vec<f32>, Vec<organization_cert::OrgCert>)> {
+) -> Result<(Vec<&mut Subscriber<Client>>, Vec<KeyPair>, Vec<f32>, Vec<OrganizationCertificate>)> {
     let mut subs: Vec<&mut Subscriber<Client>>  = Vec::new();
     let mut kps : Vec<KeyPair>                  = Vec::new();
     let mut rels: Vec<f32>                      = Vec::new();
-    let mut orgs: Vec<organization_cert::OrgCert>      = Vec::new();
+    let mut orgs: Vec<OrganizationCertificate>      = Vec::new();
 
     for id in ids {
         let (sub, kp, rel, org) = extract_from_id(id)?;
@@ -143,7 +152,7 @@ pub async fn interaction(
     //--------------------------------------------------------------
     // EXTRACT CLIENTS AND KEYPAIRS FROM IDENTITIES
     //--------------------------------------------------------------
-    let (mut transacting_clients, transacting_did_kp, transacting_reliablity, transacting_org_certs) = extract_from_ids(participant_ids)?;
+    let (mut participant_clients, participant_did_kp, participant_reliablity, participant_org_certs) = extract_from_ids(participant_ids)?;
     let (mut witness_clients, witness_did_kp, witness_reliability, witness_org_certs) = extract_from_ids(witness_ids)?;
 
     //--------------------------------------------------------------
@@ -151,7 +160,7 @@ pub async fn interaction(
     //--------------------------------------------------------------
     
     // get the public keys of all the participants
-    let mut tn_pks = get_public_keys(&transacting_org_certs);
+    let mut tn_pks = get_public_keys(&participant_org_certs);
     let mut wn_pks = get_public_keys(&witness_org_certs);
     let mut participant_pks = Vec::new();
     participant_pks.append(&mut tn_pks); participant_pks.append(&mut wn_pks);
@@ -169,15 +178,15 @@ pub async fn interaction(
     // participants process the channel announcement
     println!("Participants subscribe to channel if not already subscribed:");
     let ann_address = Address::try_from_bytes(&announcement_link.to_bytes())?;
-    for i in 0..transacting_clients.len() {
-        transacting_clients[i].receive_announcement(&ann_address).await?;
-        let subscribe_msg = transacting_clients[i].send_subscribe(&ann_address).await?;
+    for i in 0..participant_clients.len() {
+        participant_clients[i].receive_announcement(&ann_address).await?;
+        let subscribe_msg = participant_clients[i].send_subscribe(&ann_address).await?;
         let sub_result = organization_id.identity.channel_client.receive_subscribe(&subscribe_msg).await;
 
         // either the subscribe works and the program continues, or it doesnt because
         // the author already has the tn as a subscriber and the program continues
         match sub_result {
-            Ok(()) => {println!("-- Transacting node {} is now subscribed", i);},
+            Ok(()) => {println!("-- Participant {} is now subscribed", i);},
             Err(_) => {},
         };
     }
@@ -248,10 +257,10 @@ pub async fn interaction(
         })
         .collect();
 
-    println!("Transacting nodes generate their signatures:");
-    let mut transacting_sigs: Vec<interaction_sig::InteractionSig> = Vec::new();
-    for i in 0..transacting_clients.len() {
-        let multibase_pub = MethodData::new_multibase(transacting_clients[i].get_public_key());
+    println!("Participants generate their signatures:");
+    let mut participant_sigs: Vec<interaction_sig::InteractionSig> = Vec::new();
+    for i in 0..participant_clients.len() {
+        let multibase_pub = MethodData::new_multibase(participant_clients[i].get_public_key());
         let channel_pk_as_multibase: String;
         if let MethodData::PublicKeyMultibase(mbpub) = multibase_pub {
             channel_pk_as_multibase = mbpub;
@@ -259,30 +268,30 @@ pub async fn interaction(
         else {
             panic!("Could not encode public key as multibase")
         }
-        let sig = generate_sigs::generate_transacting_sig(
+        let sig = generate_sigs::generate_participant_sig(
             contract.clone(),
             channel_pk_as_multibase,
-            transacting_did_kp[i].clone(),
+            participant_did_kp[i].clone(),
             WitnessUsers(witnesses.clone()),
             interaction_sig::ArrayOfWnSignituresBytes(witness_sigs_bytes.clone()),
-            transacting_org_certs[i].clone(),
+            participant_org_certs[i].clone(),
             DEFAULT_TIMEOUT
         )?;
-        transacting_sigs.push(sig);
+        participant_sigs.push(sig);
     }
-    println!("-- Transacting node signatures generated\n");
+    println!("-- Participant signatures generated\n");
 
     //--------------------------------------------------------------
     // INITIATING TN, HAVING REVEIVED THE SIGNATURES, 
     // BUILD FINAL TRANSACTION (TN = TRANSACTING NODE)
     //--------------------------------------------------------------
 
-    println!("Initiating transacting node generates InteractionMessage:");
+    println!("Initiating participant generates InteractionMessage:");
     let interaction_msg = Message::InteractionMsg {
         contract: contract.clone(),
         witnesses: WitnessUsers(witnesses.clone()),
         wit_node_sigs: ArrayOfWnSignitures(witness_sigs.clone()),
-        tx_client_sigs: ArrayOfTxSignitures(transacting_sigs.clone()),
+        tx_client_sigs: ArrayOfTxSignitures(participant_sigs.clone()),
     };
     println!("-- InteractionMessage generated");
     
@@ -300,11 +309,11 @@ pub async fn interaction(
 
 
     // TN_A sends the interaction
-    println!("Initiating transacting node sends InteractionMessage:");
+    println!("Initiating participant sends InteractionMessage:");
     let mut prev_msg_link = keyload_a_link;
-    sync_all(&mut transacting_clients).await?;
+    sync_all(&mut participant_clients).await?;
     sync_all(&mut witness_clients).await?;
-    let (msg_link, _) = transacting_clients[0].send_signed_packet(
+    let (msg_link, _) = participant_clients[0].send_signed_packet(
         &prev_msg_link,
         &Bytes(tx_message[0].as_bytes().to_vec()),
         &Bytes::default(),
@@ -318,13 +327,13 @@ pub async fn interaction(
     //--------------------------------------------------------------
 
 
-    // Dishonest transacting nodes still want to get compensated, but are rellying
+    // Dishonest participants still want to get compensated, but are rellying
     // on lazy (or colluding) witnesses for compensation to be more likely. Reason
     // being, the counterparty may still compensate them even if they act dishonestly,
     // but only if the witnesses side with the dishonest node, thus jepordising the 
     // the conterparties trust score.
     println!("Assigning tranascting nodes as (dis)honest according to their reliability:");
-    let honest_tranascting_ids = get_honest_users(transacting_reliablity);
+    let honest_tranascting_ids = get_honest_users(participant_reliablity);
     println!("Assigning witnesses as (dis)honest according to their reliability:");
     let honest_witness_ids = get_honest_users(witness_reliability);
 
@@ -345,10 +354,10 @@ pub async fn interaction(
             // their dishonesty.
             if honesty_of_wn {
                 outcomes[i].push(honesty_of_tn);
-                println!("-- Witnesses {} responds honestly about transacting node {}", i, j);
+                println!("-- Witnesses {} responds honestly about participant {}", i, j);
             } else {
                 outcomes[i].push(lazy_outcome(&lazy_method));
-                println!("-- Witnesses {} responds dishonestly about transacting node {}", i, j);
+                println!("-- Witnesses {} responds dishonestly about participant {}", i, j);
             }
         }
     }
@@ -362,7 +371,7 @@ pub async fn interaction(
     for i in 0..witness_clients.len(){
         // WN's prepares their statement
         let wn_statement = Message::WitnessStatement {
-            outcome: outcomes[i].clone()
+            outcome: Outcome::ExchangeApplication(outcomes[i].clone())
         };
         let mut wn_statement_string = serde_json::to_string(&wn_statement)?;
 
@@ -372,7 +381,7 @@ pub async fn interaction(
         ];
 
         // WN sends their witness statement
-        sync_all(&mut transacting_clients).await?;
+        sync_all(&mut participant_clients).await?;
         sync_all(&mut witness_clients).await?;
         let (msg_link, _) = witness_clients[i].send_signed_packet(
             &prev_msg_link,
@@ -391,8 +400,8 @@ pub async fn interaction(
 
     // TODO - add read and choice
 
-    println!("Transacting nodes send compensation:");
-    for i in 0..transacting_clients.len(){
+    println!("Participants send compensation:");
+    for i in 0..participant_clients.len(){
 
         // TODO - certain TNs need to compensate other TNs
 
@@ -407,7 +416,7 @@ pub async fn interaction(
         };
 
         // because CompensationMsg is application specific, it must be wrapped
-        let wrapped_compensation_msg = Message::ApplicationMsg(ApplicationMsg::CompensationMsg(compensation_msg));
+        let wrapped_compensation_msg = Message::ApplicationMsg(ApplicationMsg::ExchangeApplication(compensation_msg));
 
         let mut compensation_msg_str = serde_json::to_string(&wrapped_compensation_msg)?;
 
@@ -417,14 +426,14 @@ pub async fn interaction(
         ];
 
         // TN sends the compensation transaction
-        sync_all(&mut transacting_clients).await?;
+        sync_all(&mut participant_clients).await?;
         sync_all(&mut witness_clients).await?;
-        let (msg_link, _) = transacting_clients[i].send_signed_packet(
+        let (msg_link, _) = participant_clients[i].send_signed_packet(
             &prev_msg_link,
             &Bytes(compensation_tx[0].as_bytes().to_vec()),
             &Bytes::default(),
         ).await?;
-        println!("-- Transacting node {} sent compensation: ID: {}, tangle index: {:#}", i, msg_link, msg_link.to_msg_index());
+        println!("-- Participant {} sent compensation: ID: {}, tangle index: {:#}", i, msg_link, msg_link.to_msg_index());
         prev_msg_link = msg_link;
     }
     println!("");
@@ -434,9 +443,9 @@ pub async fn interaction(
     //--------------------------------------------------------------
 
     println!("Participants unregister from channel:");
-    for i in 0..transacting_clients.len() {
-        transacting_clients[i].reset_state()?;
-        transacting_clients[i].unregister();
+    for i in 0..participant_clients.len() {
+        participant_clients[i].reset_state()?;
+        participant_clients[i].unregister();
     }
     for i in 0..witness_clients.len() {
 
