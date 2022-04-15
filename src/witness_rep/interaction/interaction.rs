@@ -437,22 +437,6 @@ pub async fn interaction(
         prev_msg_link = msg_link;
     }
     println!("");
-
-    //--------------------------------------------------------------
-    // THE PARTICIPANTS UNREGISTER SO THAT THEY CAN SUB TO OTHER CHANNELS
-    //--------------------------------------------------------------
-
-    println!("Participants unregister from channel:");
-    for i in 0..participant_clients.len() {
-        participant_clients[i].reset_state()?;
-        participant_clients[i].unregister();
-    }
-    for i in 0..witness_clients.len() {
-
-        witness_clients[i].reset_state()?;
-        witness_clients[i].unregister();
-    }
-    println!("-- All participants unregistered");
     
     return Ok(Some((honest_tranascting_ids, honest_witness_ids)));
 }

@@ -467,9 +467,9 @@ pub fn generate_participants_and_witnesses(
     if print{
         println!("Selecting a user to be the counterparty participant:");
     }
-    let mut count = 0;
     for i in 0.. {
         if i >= max_tries {
+            users.append(&mut participant_clients);
             return Ok(None);
         }
 
@@ -477,10 +477,13 @@ pub fn generate_participants_and_witnesses(
         if average_proximity > rand_gen.gen() {
             // checking potential counterparty reputation
             let potential_part_pk = users[cur_index].id_info.org_cert.client_pubkey.clone();
+            if print{
+                println!("-- Checking user {}'s reputation", cur_index);
+            }
             if participant_clients[0].check_participant(&potential_part_pk){
                 participant_clients.push(users.remove(cur_index));
                 if print{
-                    println!("-- User {} added\n", cur_index);
+                    println!("---- User {} added\n", cur_index);
                 }
                 break;
             }
