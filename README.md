@@ -4,27 +4,14 @@ Most development was done first in these two forks, and then moved to this repo:
 - https://github.com/kianfay/streams-examples/tree/FYP-part-2
 
 ## How to run
+Before running the simulation, you need to clone and run one-click-tangle on your local device. More information can be found in the readme of the repo. The repo is found here: https://github.com/iotaledger/one-click-tangle
+
+Use the examples in the /examples directory to quickly run the simulation or evaluation. An example of how to run an example is included in main.rs. Using a similar approach, the other examples can be run. When one or more examples has been selected, run the following from a terminal in the repository.
 ```bash
 cargo run --release
 ```
 
-## Example run
-### Config:
-```rust
-    witness_rep::simulation::SimulationConfig {
-        node_url: String::from(url),
-        num_users: 4,
-        average_proximity: 1.0,
-        witness_floor: 2,
-        runs: 1,
-        reliability: vec![0.75; 4],
-        user_reliability_threshold: vec![0.5; 4],
-        user_default_reliability: vec![0.5; 4],
-        organizations: vec![0,1,1,0]
-    }; 
-```
-
-### Output:
+### Example output:
 ```
 Selecting participants to be participants and witnesses:
 -- Participant 0 is finding witnesses:
@@ -57,7 +44,7 @@ Verdicts:
 ---- tns [1.0, 1.0] wns [0.0, 1.0]
 ```
 
-Commentary:
+### Commentary:
 This outcome used the tsg_organization function, so each participant predicts the outcome and then
 generates the verdicts. This would obviously not be ideal for the nodes involved in the interaction,
 who have hypothetially have complete knowledge about the outcome. Nonetheless, we examine their verdicts

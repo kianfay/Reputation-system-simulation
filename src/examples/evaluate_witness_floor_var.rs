@@ -11,7 +11,7 @@ pub async fn evaluate_witness_floor_var(url: &str) -> Result<()> {
         num_users: 15,
         average_proximity: 0.6,
         witness_floor: 2,
-        runs: 10,
+        runs: 30,
         reliability: vec![0.8; 15],
         user_reputation_threshold: vec![0.1; 15],
         user_default_reputation: vec![0.5; 15],

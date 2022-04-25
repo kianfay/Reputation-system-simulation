@@ -35,13 +35,14 @@ pub fn generate_witness_sig(
 
 
     let did_pk_as_multibase: String = get_multibase(&did_keypair);
+    let timeout = get_timeout(duration);
 
     // WN signs their response
     let wn_pre_sig = witness_sig::WitnessPreSig {
         contract: contract.clone(),
         signer_channel_pubkey: channel_pk_as_multibase.clone(),
         org_cert: org_cert.clone(),
-        timeout: get_timeout(duration),
+        timeout: timeout,
     };
     let wn_pre_sig_bytes = serde_json::to_string(&wn_pre_sig)?;
     let wn_sig_bytes: [u8; 64]  = Ed25519::sign(&String::into_bytes(wn_pre_sig_bytes), did_keypair.private())?;
@@ -51,7 +52,7 @@ pub fn generate_witness_sig(
         contract: contract.clone(),
         signer_channel_pubkey: channel_pk_as_multibase,
         org_cert: org_cert,
-        timeout: get_timeout(duration),
+        timeout: timeout,
         signer_did_pubkey: did_pk_as_multibase,
         signature: wn_sig_bytes.to_vec(),
     };
@@ -70,6 +71,7 @@ pub fn generate_participant_sig(
 ) -> Result<interaction_sig::InteractionSig> {
 
     let did_pk_as_multibase: String = get_multibase(&did_keypair);
+    let timeout = get_timeout(duration);
 
     // TN_A signs the interaction
     let tn_a_tx_msg_pre_sig = interaction_sig::InteractionPreSig {
@@ -78,7 +80,7 @@ pub fn generate_participant_sig(
         witnesses: witnesses.clone(),
         wit_node_sigs: witness_sigs.clone(),
         org_cert: org_cert.clone(),
-        timeout: get_timeout(duration)
+        timeout: timeout
     };
     let tn_a_tx_msg_pre_sig_bytes = serde_json::to_string(&tn_a_tx_msg_pre_sig)?;
     let tn_a_tx_msg_sig: [u8; 64]  = Ed25519::sign(&String::into_bytes(tn_a_tx_msg_pre_sig_bytes), did_keypair.private())?;
@@ -90,7 +92,7 @@ pub fn generate_participant_sig(
         witnesses: witnesses,
         wit_node_sigs: witness_sigs,
         org_cert: org_cert,
-        timeout: get_timeout(duration),
+        timeout: timeout,
         signer_did_pubkey: did_pk_as_multibase.clone(),
         signature: tn_a_tx_msg_sig.to_vec()
     };

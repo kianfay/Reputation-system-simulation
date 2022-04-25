@@ -144,7 +144,7 @@ pub async fn interaction(
     lazy_method: LazyMethod,
     run: usize
 ) -> Result<Option<(Vec<bool>, Vec<bool>)>> {
-    const DEFAULT_TIMEOUT : u32 = 60*2; // 2 mins
+    const DEFAULT_TIMEOUT : u32 = 60*10; // 10 mins
     let ann_str = organization_id.ann_msg.as_ref().unwrap();
     let announcement_link = Address::from_str(ann_str)?;
 
@@ -291,7 +291,7 @@ pub async fn interaction(
         contract: contract.clone(),
         witnesses: WitnessUsers(witnesses.clone()),
         witness_sigs: ArrayOfWnSignitures(witness_sigs.clone()),
-        witness_sigs: ArrayOfIntSignitures(participant_sigs.clone()),
+        interaction_sigs: ArrayOfIntSignitures(participant_sigs.clone()),
     };
     println!("-- InteractionMessage generated");
     

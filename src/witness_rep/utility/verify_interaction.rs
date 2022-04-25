@@ -218,7 +218,7 @@ pub fn verify_witness_sig(
                 .duration_since(UNIX_EPOCH)
                 .expect("Time went backwards");
 
-            if timeout > current_time.as_secs() as u32 {
+            if timeout < current_time.as_secs() as u32 {
                 panic!("Signature verification failed")
             }
 
@@ -274,7 +274,7 @@ pub fn verify_interaction_sig(
                 .duration_since(UNIX_EPOCH)
                 .expect("Time went backwards");
 
-            if timeout as u64 > current_time.as_secs() {
+            if timeout < current_time.as_secs() as u32 {
                 panic!("Signature verification failed")
             }
 
