@@ -1,5 +1,5 @@
 use crate::witness_rep::{
-    interaction::user_and_organization::{
+    implementation::user_and_organization::{
         UserIdentity
     },
 };

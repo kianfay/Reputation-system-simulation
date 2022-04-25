@@ -23,13 +23,14 @@ use identity::{
     crypto::{KeyPair, Ed25519, Sign}
 };
 
+use std::time::{SystemTime, UNIX_EPOCH};
 
 pub fn generate_witness_sig(
     contract: Contract,
     channel_pk_as_multibase: String,
     did_keypair: KeyPair,
     org_cert: OrganizationCertificate,
-    timeout: u32
+    duration: u32
 ) -> Result<witness_sig::WitnessSig> {
 
 
@@ -40,7 +41,7 @@ pub fn generate_witness_sig(
         contract: contract.clone(),
         signer_channel_pubkey: channel_pk_as_multibase.clone(),
         org_cert: org_cert.clone(),
-        timeout: timeout,
+        timeout: get_timeout(duration),
     };
     let wn_pre_sig_bytes = serde_json::to_string(&wn_pre_sig)?;
     let wn_sig_bytes: [u8; 64]  = Ed25519::sign(&String::into_bytes(wn_pre_sig_bytes), did_keypair.private())?;
@@ -50,7 +51,7 @@ pub fn generate_witness_sig(
         contract: contract.clone(),
         signer_channel_pubkey: channel_pk_as_multibase,
         org_cert: org_cert,
-        timeout: timeout,
+        timeout: get_timeout(duration),
         signer_did_pubkey: did_pk_as_multibase,
         signature: wn_sig_bytes.to_vec(),
     };
@@ -65,7 +66,7 @@ pub fn generate_participant_sig(
     witnesses: WitnessUsers,
     witness_sigs: interaction_sig::ArrayOfWnSignituresBytes,
     org_cert: OrganizationCertificate,
-    timeout: u32
+    duration: u32
 ) -> Result<interaction_sig::InteractionSig> {
 
     let did_pk_as_multibase: String = get_multibase(&did_keypair);
@@ -77,7 +78,7 @@ pub fn generate_participant_sig(
         witnesses: witnesses.clone(),
         wit_node_sigs: witness_sigs.clone(),
         org_cert: org_cert.clone(),
-        timeout: timeout
+        timeout: get_timeout(duration)
     };
     let tn_a_tx_msg_pre_sig_bytes = serde_json::to_string(&tn_a_tx_msg_pre_sig)?;
     let tn_a_tx_msg_sig: [u8; 64]  = Ed25519::sign(&String::into_bytes(tn_a_tx_msg_pre_sig_bytes), did_keypair.private())?;
@@ -89,7 +90,7 @@ pub fn generate_participant_sig(
         witnesses: witnesses,
         wit_node_sigs: witness_sigs,
         org_cert: org_cert,
-        timeout: timeout,
+        timeout: get_timeout(duration),
         signer_did_pubkey: did_pk_as_multibase.clone(),
         signature: tn_a_tx_msg_sig.to_vec()
     };
@@ -130,4 +131,13 @@ pub fn get_multibase(did_keypair: &KeyPair) -> String {
     else {
         panic!("Could not encode public key as multibase")
     }
+}
+
+pub fn get_timeout(duration: u32) -> u32 {
+    let start = SystemTime::now();
+    let current_time = start
+        .duration_since(UNIX_EPOCH)
+        .expect("Time went backwards");
+
+    return current_time.as_secs() as u32 + duration;
 }

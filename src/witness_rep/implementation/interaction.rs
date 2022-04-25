@@ -1,5 +1,5 @@
 use crate::witness_rep::{
-    interaction::{
+    implementation::{
         generate_sigs, 
         user_and_organization::{
             UserIdentity, OrganizationIdentity, IdInfo, get_public_keys
@@ -21,7 +21,7 @@ use wb_reputation_system::data_types::{
         },
         event_protocol_messages::{
             Contract, Message,
-            ArrayOfWnSignitures, ArrayOfTxSignitures,
+            ArrayOfWnSignitures, ArrayOfIntSignitures,
             ApplicationMsg, Outcome
         },
         signatures::{
@@ -290,8 +290,8 @@ pub async fn interaction(
     let interaction_msg = Message::InteractionMsg {
         contract: contract.clone(),
         witnesses: WitnessUsers(witnesses.clone()),
-        wit_node_sigs: ArrayOfWnSignitures(witness_sigs.clone()),
-        tx_client_sigs: ArrayOfTxSignitures(participant_sigs.clone()),
+        witness_sigs: ArrayOfWnSignitures(witness_sigs.clone()),
+        witness_sigs: ArrayOfIntSignitures(participant_sigs.clone()),
     };
     println!("-- InteractionMessage generated");
     

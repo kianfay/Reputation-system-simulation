@@ -15,11 +15,11 @@ pub async fn run_moderate_sim(url: &str) -> Result<()> {
         witness_floor: 2,
         runs: 100,
         reliability: vec![1.0, 1.0, 0.4, 0.7, 0.6, 0.8, 0.9, 0.7, 0.3, 0.6, 1.0, 0.7, 0.4, 0.5, 1.0],
-        user_reliability_threshold: vec![0.1; 15],
-        user_default_reliability: vec![0.5; 15],
+        user_reputation_threshold: vec![0.1; 15],
+        user_default_reputation: vec![0.5; 15],
         user_organizations: vec![0,0,0,0,0,1,1,1,1,1,2,2,2,2,2],
-        organization_reliability_threshold: vec![0.1; 15],
-        organization_default_reliability: vec![0.5; 15]
+        organization_reputation_threshold: vec![0.1; 15],
+        organization_default_reputation: vec![0.5; 15]
     };
     let dir_name = witness_rep::simulation::simulation(sc).await?;
 

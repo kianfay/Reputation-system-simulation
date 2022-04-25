@@ -2524,7 +2524,7 @@ checksum = "3d958d035c4438e28c70e4321a2911302f10135ce78a9c7834c0cab4123d06a2"
 [[package]]
 name = "wb-reputation-system"
 version = "0.1.0"
-source = "git+https://github.com/kianfay/wb-reputation-system#dbb5dc010a086688084639162ddcc6697db9555a"
+source = "git+https://github.com/kianfay/wb-reputation-system#fd634df7fc329731dbf72ceba4689f457bb65138"
 dependencies = [
  "anyhow",
  "serde",

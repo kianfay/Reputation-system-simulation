@@ -179,9 +179,9 @@ pub fn get_next_config_app(
 
                 // special case, needs other param changes
                 sc.reliability = vec![sc.reliability[0]; new_val];
-                sc.user_reliability_threshold = vec![sc.user_reliability_threshold[0]; new_val];
-                sc.user_default_reliability = vec![sc.user_default_reliability[0]; new_val];
-                sc.user_default_reliability = vec![sc.user_default_reliability[0]; new_val];
+                sc.user_reputation_threshold = vec![sc.user_reputation_threshold[0]; new_val];
+                sc.user_default_reputation = vec![sc.user_default_reputation[0]; new_val];
+                sc.user_default_reputation = vec![sc.user_default_reputation[0]; new_val];
                 // this keeps distribution of organizations uniform
                 sc.user_organizations = vec![0; new_val].into_iter().map(|x| x % 4).collect();
 
@@ -259,11 +259,11 @@ pub fn get_next_config_part(
         },
         IndependantVarPartHollow::ReliabilityThreshold  =>
         {   
-            sc.user_reliability_threshold = new_vec;
+            sc.user_reputation_threshold = new_vec;
         },
         IndependantVarPartHollow::DefaultReliability  =>
         {
-            sc.user_default_reliability = new_vec;
+            sc.user_default_reputation = new_vec;
         },
         _ => return None
     }
@@ -281,11 +281,11 @@ pub fn test_sc_iterator() {
         witness_floor: 2,
         runs: 30,
         reliability: vec![1.0; 15],
-        user_reliability_threshold: vec![1.0; 15],
-        user_default_reliability: vec![1.0; 15],
+        user_reputation_threshold: vec![1.0; 15],
+        user_default_reputation: vec![1.0; 15],
         user_organizations: vec![1; 15],
-        organization_reliability_threshold: vec![1.0; 15],
-        organization_default_reliability: vec![1.0; 15]
+        organization_reputation_threshold: vec![1.0; 15],
+        organization_default_reputation: vec![1.0; 15]
     };
     let mut ind_var: IndependantVar<IndependantVarPart> = IndependantVar {
         sc: sc,

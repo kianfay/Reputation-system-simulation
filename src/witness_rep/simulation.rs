@@ -1,7 +1,7 @@
 use crate::witness_rep::{
     iota_did::create_and_upload_did::{create_n_dids, Key, RunMode},
-    interaction::{generate_contract, generate_sigs},
-    interaction::{
+    implementation::{generate_contract, generate_sigs},
+    implementation::{
         interaction::{interaction, LazyMethod},
         user_and_organization::{
             UserIdentity, OrganizationIdentity,
@@ -12,7 +12,7 @@ use crate::witness_rep::{
 
 use wb_reputation_system::{
     trust_score_generators::exchange_application_tsg::{
-        trivial_tsg::tsg_organization,
+        trivial_tsg::TsgOrganization,
     },
     utility::parse_messages,
     data_types::identity::identity::{
@@ -39,7 +39,7 @@ use std::collections::HashMap;
 use std::convert::TryInto;
 use std::iter::FromIterator;
 use std::fs;
-use chrono::prelude::*;
+use chrono::prelude::{Utc, DateTime};
 use serde::{Deserialize, Serialize};
 
 pub const ALPH9: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ9";
@@ -53,11 +53,11 @@ pub struct SimulationConfig {
     pub witness_floor: usize,
     pub runs: usize,
     pub reliability: Vec<f32>,
-    pub user_reliability_threshold: Vec<f32>,
-    pub user_default_reliability: Vec<f32>,
+    pub user_reputation_threshold: Vec<f32>,
+    pub user_default_reputation: Vec<f32>,
     pub user_organizations: Vec<usize>,
-    pub organization_reliability_threshold: Vec<f32>,
-    pub organization_default_reliability: Vec<f32>,
+    pub organization_reputation_threshold: Vec<f32>,
+    pub organization_default_reputation: Vec<f32>,
 }
 
 // For now this simulation is capturing the abstract scenario where the initiating participant wishes 
@@ -141,8 +141,8 @@ pub async fn simulation(
                 org_cert: generate_sigs::generate_org_cert(pubkey, &repeat_kp, DEFAULT_DURATION)?
             },
             reputation_map: reputation_map,
-            user_reliability_threshold: sc.organization_reliability_threshold[i],
-            user_default_reliability: sc.organization_default_reliability[i]
+            user_reputation_threshold: sc.organization_reputation_threshold[i],
+            user_default_reputation: sc.organization_default_reputation[i]
         };
 
         let org_id_with_announcement = OrganizationIdentity{
@@ -189,8 +189,8 @@ pub async fn simulation(
                 org_cert: generate_sigs::generate_org_cert(part_did_pk.clone(), org_kp, DEFAULT_DURATION)?
             },
             reputation_map: reputation_map,
-            user_reliability_threshold: sc.user_reliability_threshold[i],
-            user_default_reliability: sc.user_default_reliability[i]
+            user_reputation_threshold: sc.user_reputation_threshold[i],
+            user_default_reputation: sc.user_default_reputation[i]
         };
         participants.push(id);
 
@@ -267,11 +267,11 @@ pub async fn simulation(
         participants = reset_clients(participants, client.clone())?;
     }
 
-    // write all of the reliability maps to file, next to their did public key
+    // write all of the reputation maps to file, next to their did public key
     let mut output: String = String::new();
     for part in participants {
         let pk = format!("{}\n", part.id_info.org_cert.client_pubkey);
-        let map = format!("{}\n\n", part.get_reliability_scores_string());
+        let map = format!("{}\n\n", part.get_reputation_scores_string());
         output.push_str(&pk);
         output.push_str(&map);
     }
@@ -358,7 +358,7 @@ pub async fn simulation_iteration(
         },
         None => {
             println!(
-                "The average reliability of the participants does not satisfy the organizations threshold"
+                "The average reputation of the participants does not satisfy the organizations threshold"
             );
             return Ok(false);
         }
@@ -400,41 +400,34 @@ pub async fn simulation_iteration(
     fs::write(file_name, output).expect("Unable to write file");
 
     //--------------------------------------------------------------
-    // ALL PARTICIPANTS NOW UPDATE THEIR RELIABILITY SCORES BY
+    // ALL PARTICIPANTS NOW UPDATE THEIR reputation SCORES BY
     // PROCESSING THE LATEST INTERACTION
     //--------------------------------------------------------------
 
-    // participants update their reliability scores of each other
+    // participants update their reputation scores of each other
     let channel_msgs = read_msgs::read_msgs(node_url, ann_msg).await?;
     let branch_msgs = extract_msgs::extract_msg(channel_msgs, verify_interaction::WhichBranch::LastBranch);
     //println!("HHHHEERREEE: {:?}", branch_msgs);
     let parsed_msgs = parse_messages::parse_messages(&branch_msgs)?;
     for part in participants.into_iter() {
-        let (tn_verdicts, wn_verdicts) = tsg_organization(
-            parsed_msgs.clone(),
-            part.id_info.org_cert.org_pubkey.clone(),
-            0.5
-        ).unwrap();
 
-        // add the new verdicts to the reliability map
-        part.update_reliability(tn_verdicts.clone());
-        part.update_reliability(wn_verdicts.clone());
+        let tsg_org = TsgOrganization {
+            org_pubkey: part.id_info.org_cert.org_pubkey.clone(),
+            default_reputation: 0.5
+        };
 
-        //println!("tn_verdicts: {:?}", tn_verdicts);
-        //println!("wn_verdicts: {:?}\n", wn_verdicts);
+        part.run_tsg_and_include_in_rm(parsed_msgs.clone(), tsg_org);
     }
 
     // do the same for organizations
     for org in organizations.into_iter() {
-        let (tn_verdicts, wn_verdicts) = tsg_organization(
-            parsed_msgs.clone(),
-            org.identity.id_info.org_cert.org_pubkey.clone(),
-            0.5
-        ).unwrap();
 
-        // add the new verdicts to the reliability map
-        org.identity.update_reliability(tn_verdicts.clone());
-        org.identity.update_reliability(wn_verdicts.clone());
+        let tsg_org = TsgOrganization {
+            org_pubkey: org.identity.id_info.org_cert.org_pubkey.clone(),
+            default_reputation: 0.5
+        };
+
+        org.identity.run_tsg_and_include_in_rm(parsed_msgs.clone(), tsg_org);
 
         //println!("tn_verdicts: {:?}", tn_verdicts);
         //println!("wn_verdicts: {:?}\n", wn_verdicts);

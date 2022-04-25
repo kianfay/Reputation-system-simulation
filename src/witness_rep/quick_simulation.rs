@@ -1,7 +1,7 @@
 use crate::witness_rep::{
     iota_did::create_and_upload_did::{create_n_dids, Key, RunMode},
-    interaction::{generate_contract, generate_sigs},
-    interaction::{
+    implementation::{generate_contract, generate_sigs},
+    implementation::{
         interaction::{LazyMethod},
         quick_interaction::quick_interaction,
         user_and_organization::{
@@ -117,8 +117,8 @@ pub async fn quick_simulation(
                 org_cert: generate_sigs::generate_org_cert(pubkey, &repeat_kp, DEFAULT_DURATION)?
             },
             reputation_map: reputation_map,
-            user_reliability_threshold: sc.user_reliability_threshold[i],
-            user_default_reliability: sc.user_default_reliability[i]
+            user_reputation_threshold: sc.user_reputation_threshold[i],
+            user_default_reputation: sc.user_default_reputation[i]
         };
 
         let org_id_with_announcement = OrganizationIdentity{
@@ -170,8 +170,8 @@ pub async fn quick_simulation(
                 org_cert: generate_sigs::generate_org_cert(part_did_pk.clone(), org_kp, timeout)?
             },
             reputation_map: reputation_map,
-            user_reliability_threshold: sc.user_reliability_threshold[i],
-            user_default_reliability: sc.user_default_reliability[i]
+            user_reputation_threshold: sc.user_reputation_threshold[i],
+            user_default_reputation: sc.user_default_reputation[i]
         };
         participants.push(id);
 
@@ -308,8 +308,8 @@ pub async fn quick_simulation(
             ).unwrap();
 
             // add the new verdicts to the reliability map
-            part.update_reliability(tn_verdicts.clone());
-            part.update_reliability(wn_verdicts.clone());
+            part.update_reputation(tn_verdicts.clone());
+            part.update_reputation(wn_verdicts.clone());
 
             //println!("tn_verdicts: {:?}", tn_verdicts);
             //println!("wn_verdicts: {:?}\n", wn_verdicts);
@@ -320,7 +320,7 @@ pub async fn quick_simulation(
     let mut output: String = String::new();
     for part in participants {
         let pk = format!("{}\n", part.id_info.org_cert.client_pubkey);
-        let map = format!("{}\n\n", part.get_reliability_scores_string());
+        let map = format!("{}\n\n", part.get_reputation_scores_string());
         output.push_str(&pk);
         output.push_str(&map);
     }

@@ -13,11 +13,11 @@ pub async fn evaluate_runs_var(url: &str) -> Result<()> {
         witness_floor: 2,
         runs: 2,
         reliability: vec![0.8; 15],
-        user_reliability_threshold: vec![0.1; 15],
-        user_default_reliability: vec![0.5; 15],
+        user_reputation_threshold: vec![0.1; 15],
+        user_default_reputation: vec![0.5; 15],
         user_organizations: vec![0,0,0,0,0,1,1,1,1,1,2,2,2,2,2],
-        organization_reliability_threshold: vec![0.1; 15],
-        organization_default_reliability: vec![0.5; 15]
+        organization_reputation_threshold: vec![0.1; 15],
+        organization_default_reputation: vec![0.5; 15]
     };
 
     let mut ind_var_0: IndependantVar<IndependantVarApp> = IndependantVar {

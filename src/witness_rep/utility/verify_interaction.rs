@@ -24,6 +24,8 @@ use identity::{
     did::MethodData,
 };
 
+use std::time::{SystemTime, UNIX_EPOCH};
+
 #[derive(Clone,PartialEq,Debug)]
 pub enum PublickeyOwner {
     Participant(String),
@@ -93,10 +95,10 @@ pub fn verify_msg(
 ) -> Result<(bool, Option<Vec<PublickeyOwner>>)> {
     match tx_msg {
         message::Message::InteractionMsg {
-            contract, witnesses, wit_node_sigs, tx_client_sigs
+            contract, witnesses, witness_sigs, interaction_sigs
         } => {
-            let tx_msg = message::Message::InteractionMsg {contract: contract.clone(), witnesses, wit_node_sigs, tx_client_sigs};
-            let (message::ArrayOfWnSignitures(wit_sigs), message::ArrayOfTxSignitures(tn_sigs)) = get_sigs(tx_msg);
+            let tx_msg = message::Message::InteractionMsg {contract: contract.clone(), witnesses, witness_sigs, interaction_sigs};
+            let (message::ArrayOfWnSignitures(wit_sigs), message::ArrayOfIntSignitures(tn_sigs)) = get_sigs(tx_msg);
 
             // check that the contract is as defined in the application
             match contract.clone() {
@@ -174,14 +176,14 @@ pub fn verify_msg(
 
 pub fn get_sigs(
     tx: message::Message
-) -> (message::ArrayOfWnSignitures,message::ArrayOfTxSignitures) {
+) -> (message::ArrayOfWnSignitures,message::ArrayOfIntSignitures) {
     match tx {
         message::Message::InteractionMsg {
             contract: _,
             witnesses: _,
-            wit_node_sigs,
-            tx_client_sigs,
-        } => return (wit_node_sigs, tx_client_sigs),
+            witness_sigs,
+            interaction_sigs
+        } => return (witness_sigs, interaction_sigs),
         _ => panic!("Can only get signatures from a InteractionMsg message")
     };
 }
@@ -210,9 +212,21 @@ pub fn verify_witness_sig(
 
             let pre_sig = serde_json::to_string(&pre_sig).unwrap();
 
+            // verify the timeout
+            let start = SystemTime::now();
+            let current_time = start
+                .duration_since(UNIX_EPOCH)
+                .expect("Time went backwards");
+
+            if timeout > current_time.as_secs() as u32 {
+                panic!("Signature verification failed")
+            }
+
+            // verify the digital signature
             let signer_did_pubkey = MethodData::PublicKeyMultibase(signer_did_pubkey);
             let decoded_pubkey = MethodData::try_decode(&signer_did_pubkey)?;
             let sig_unsigned = Ed25519::verify(pre_sig.as_bytes(), &signature, &decoded_pubkey);
+            
             if let Ok(()) = sig_unsigned {
                 // check the contract
                 match interaction_contract {
@@ -254,6 +268,17 @@ pub fn verify_interaction_sig(
             let mut sorted_wn_sigs_to_check = wit_node_sigs.clone().0;
             sorted_wn_sigs_to_check.sort();
 
+            // verify the timeout
+            let start = SystemTime::now();
+            let current_time = start
+                .duration_since(UNIX_EPOCH)
+                .expect("Time went backwards");
+
+            if timeout as u64 > current_time.as_secs() {
+                panic!("Signature verification failed")
+            }
+
+            // verify the uniformity of the wwitness sigs
             if sorted_wn_sigs_to_check != sorted_witness_sigs {
                 panic!("The witnesses linked in the participant sig differ from those in the transaction message")
             }
