@@ -123,7 +123,7 @@ pub async fn quick_simulation(
 
         let org_id_with_announcement = OrganizationIdentity{
             identity: org_id,
-            ann_msg: None
+            ann_msg: Some(String::from("placeholder"))
         };
         organizations.push(org_id_with_announcement);
     }
